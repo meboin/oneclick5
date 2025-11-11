@@ -361,9 +361,14 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
               </label>
             </div>
           ) : (
-            <label
-              htmlFor="file-upload"
+            <div
               className="cursor-pointer flex flex-col items-center justify-center"
+              onClick={() => {
+                const input = document.getElementById('file-upload') as HTMLInputElement | null;
+                if (input) {
+                  input.click();
+                }
+              }}
             >
               <i
                 className={`ri-upload-cloud-line w-8 h-8 flex items-center justify-center mb-2 ${
@@ -376,7 +381,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
               <span className="text-xs text-gray-400 mt-1">
                 PDF, DOC, TXT, 이미지 파일 등 여러 파일을 첨부할 수 있습니다 (총 용량 5MB 이하)
               </span>
-            </label>
+            </div>
           )}
         </div>
       </div>

@@ -9,11 +9,17 @@ interface CalendarHeaderProps {
   events: CalendarEvent[];
   onToggleWidget: () => void;
   isWidgetOpen: boolean;
+  /**
+   * Number of pending alert notifications. When greater than zero, a red dot is
+   * displayed on the notifications icon.
+   */
+  alertCount?: number;
 }
 
 /**
  * 캘린더 상단 헤더. 주간/월간 보기 전환과 새로운 템플릿 생성 버튼,
  * 알림/공유 버튼, 위젯 토글 버튼을 제공합니다. 오늘 일정 수를 표시합니다.
+ * 알림 버튼 위에는 alertCount가 0보다 클 때 빨간 점이 표시됩니다.
  */
 export default function CalendarHeader({
   viewMode,
@@ -23,7 +29,8 @@ export default function CalendarHeader({
   onShare,
   events,
   onToggleWidget,
-  isWidgetOpen
+  isWidgetOpen,
+  alertCount = 0
 }: CalendarHeaderProps) {
   const todayEvents = events.filter(event => {
     const today = new Date();
@@ -70,18 +77,26 @@ export default function CalendarHeader({
           >
             새 템플릿
           </button>
-          <button
-            onClick={onNotifications}
-            className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <i className="ri-notification-line w-4 h-4 flex items-center justify-center"></i>
-          </button>
+          {/* Notifications button with red dot */}
+          <div className="relative">
+            <button
+              onClick={onNotifications}
+              className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+            >
+              <i className="ri-notification-line w-4 h-4 flex items-center justify-center"></i>
+            </button>
+            {alertCount > 0 && (
+              <span className="absolute top-1 right-1 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+            )}
+          </div>
+          {/* Share button */}
           <button
             onClick={onShare}
             className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
           >
             <i className="ri-share-line w-4 h-4 flex items-center justify-center"></i>
           </button>
+          {/* Widget toggle button */}
           <button
             onClick={onToggleWidget}
             className={`w-8 h-8 flex items-center justify-center rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${

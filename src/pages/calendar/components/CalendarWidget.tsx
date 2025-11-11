@@ -641,17 +641,7 @@ export default function CalendarWidget({ isOpen, onClose, events, onCreateTempla
             })}
           </div>
         )}
-        {/* 빠른 액션 */}
-        <div className="p-4 border-t border-white/20">
-          <button
-            onClick={onCreateTemplate}
-            className={`w-full bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-black py-3 rounded font-medium whitespace-nowrap cursor-pointer ${
-              isDragging ? '' : 'hover:from-blue-500/40 hover:to-purple-500/40 transition-all duration-150'
-            }`}
-          >
-            새 템플릿 생성
-          </button>
-        </div>
+        {/* 빠른 액션 영역 제거됨: 위젯 내에서 새 템플릿 생성 버튼을 표시하지 않습니다 */}
         {/* 일정 상세 보기 팝업 */}
         {selectedDayEvents && (
           <div
