@@ -198,85 +198,88 @@ export default function WeekView({
 
   return (
     <div className="flex-1 bg-white h-full overflow-hidden" onClick={handleClickOutside}>
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-8 border-b border-gray-200">
-        <div className="p-2 border-r border-gray-200"></div>
-        {DAYS.map(day => (
-          <div
-            key={day}
-            className="p-2 text-center font-medium text-gray-900 border-r border-gray-200 text-sm"
-          >
-            {day}
-          </div>
-        ))}
-      </div>
-      {/* 시간/요일 그리드 */}
+      {/* 스크롤 가능한 래퍼: 헤더와 그리드를 함께 감싸 스크롤바로 인한 요일/시간 정렬 문제를 해결합니다 */}
       <div
-        className="grid grid-cols-8 overflow-y-auto"
+        className="overflow-y-auto h-full"
         style={{ maxHeight: 'calc(((100vh - 120px) / 12) * 8)' }}
       >
-        {HOURS.map(hour => (
-          <div key={hour} className="contents">
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-8 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <div className="p-2 border-r border-gray-200"></div>
+          {DAYS.map(day => (
             <div
-              className="p-2 border-r border-b border-gray-200 text-xs text-gray-600 font-medium flex items-center justify-center"
-              style={{ minHeight: 'calc((100vh - 120px) / 12)' }}
+              key={day}
+              className="p-2 text-center font-medium text-gray-900 border-r border-gray-200 text-sm"
             >
-              {hour}:00
+              {day}
             </div>
-            {DAYS.map((_, dayIndex) => {
-              const cellEvent = getEventForCell(dayIndex, hour);
-              const isStart = cellEvent && isEventStart(cellEvent, hour);
-              const eventHeight = cellEvent ? getEventHeight(cellEvent) : 1;
-              return (
-                <div
-                  key={`${hour}-${dayIndex}`}
-                  className={`border-r border-b border-gray-200 p-1 cursor-pointer transition-colors relative ${
-                    selectedTemplate ? 'hover:bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                  style={{ minHeight: 'calc((100vh - 120px) / 12)' }}
-                  onClick={() => handleCellClick(dayIndex, hour)}
-                  onDrop={e => handleDrop(e, dayIndex, hour)}
-                  onDragOver={e => e.preventDefault()}
-                >
-                  {cellEvent && isStart && (
-                    <div
-                      className="absolute left-0.5 right-0.5 p-1 rounded text-white text-xs font-medium group cursor-move z-10"
-                      style={{
-                        backgroundColor: cellEvent.template.color,
-                        height: `calc(${eventHeight} * (100vh - 120px) / 12 - 2px)`,
-                        top: '2px'
-                      }}
-                      draggable
-                      onDragStart={e => {
-                        e.dataTransfer.setData('event', JSON.stringify(cellEvent.id));
-                        e.stopPropagation();
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleEventClick(cellEvent);
-                      }}
-                      onContextMenu={e => handleEventContextMenu(e, cellEvent)}
-                    >
-                      <div className="truncate text-xs">{cellEvent.template.name}</div>
-                      <div className="text-xs opacity-75">
-                        {cellEvent.startTime} - {cellEvent.endTime}
-                      </div>
-                      <button
+          ))}
+        </div>
+        {/* 시간/요일 그리드 */}
+        <div className="grid grid-cols-8">
+          {HOURS.map(hour => (
+            <div key={hour} className="contents">
+              <div
+                className="p-2 border-r border-b border-gray-200 text-xs text-gray-600 font-medium flex items-center justify-center"
+                style={{ minHeight: 'calc((100vh - 120px) / 12)' }}
+              >
+                {hour}:00
+              </div>
+              {DAYS.map((_, dayIndex) => {
+                const cellEvent = getEventForCell(dayIndex, hour);
+                const isStart = cellEvent && isEventStart(cellEvent, hour);
+                const eventHeight = cellEvent ? getEventHeight(cellEvent) : 1;
+                return (
+                  <div
+                    key={`${hour}-${dayIndex}`}
+                    className={`border-r border-b border-gray-200 p-1 cursor-pointer transition-colors relative ${
+                      selectedTemplate ? 'hover:bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                    style={{ minHeight: 'calc((100vh - 120px) / 12)' }}
+                    onClick={() => handleCellClick(dayIndex, hour)}
+                    onDrop={e => handleDrop(e, dayIndex, hour)}
+                    onDragOver={e => e.preventDefault()}
+                  >
+                    {cellEvent && isStart && (
+                      <div
+                        className="absolute left-0.5 right-0.5 p-1 rounded text-white text-xs font-medium group cursor-move z-10"
+                        style={{
+                          backgroundColor: cellEvent.template.color,
+                          height: `calc(${eventHeight} * (100vh - 120px) / 12 - 2px)`,
+                          top: '2px'
+                        }}
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData('event', JSON.stringify(cellEvent.id));
+                          e.stopPropagation();
+                        }}
                         onClick={e => {
                           e.stopPropagation();
-                          onDeleteEvent(cellEvent.id);
+                          handleEventClick(cellEvent);
                         }}
-                        className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        onContextMenu={e => handleEventContextMenu(e, cellEvent)}
                       >
-                        <i className="ri-close-line w-2.5 h-2.5 flex items-center justify-center"></i>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                        <div className="truncate text-xs">{cellEvent.template.name}</div>
+                        <div className="text-xs opacity-75">
+                          {cellEvent.startTime} - {cellEvent.endTime}
+                        </div>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteEvent(cellEvent.id);
+                          }}
+                          className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <i className="ri-close-line w-2.5 h-2.5 flex items-center justify-center"></i>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
       {/* 컨텍스트 메뉴 */}
       {contextMenu && (

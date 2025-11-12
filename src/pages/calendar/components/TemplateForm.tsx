@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Template } from '../../../types/calendar';
 import Button from '../../../components/base/Button';
 
@@ -41,6 +41,9 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // 파일 입력 요소에 직접 접근하기 위한 ref. id를 사용하지 않고 ref로 클릭을 트리거합니다.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Populate form when editing
   useEffect(() => {
@@ -324,7 +327,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
             type="file"
             onChange={handleFileChange}
             className="hidden"
-            id="file-upload"
+            ref={fileInputRef}
             multiple
             accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
           />
@@ -352,17 +355,10 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                   </button>
                 </div>
               ))}
-              {/*
-                Replace label with a button to trigger the hidden file input. Using a label
-                with htmlFor inside a form can cause the file dialog to open when other
-                form controls (like the submit button) are clicked. A button avoids this.
-              */}
+              {/* 기존 label 대신 버튼을 사용하고 ref를 통해 파일 입력을 트리거합니다. */}
               <button
                 type="button"
-                onClick={() => {
-                  const input = document.getElementById('file-upload') as HTMLInputElement | null;
-                  if (input) input.click();
-                }}
+                onClick={() => fileInputRef.current?.click()}
                 className="cursor-pointer flex items-center justify-center text-blue-600 hover:text-blue-700 mt-2"
               >
                 <i className="ri-add-line w-4 h-4 flex items-center justify-center mr-1"></i>
@@ -373,10 +369,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
             <div
               className="cursor-pointer flex flex-col items-center justify-center"
               onClick={() => {
-                const input = document.getElementById('file-upload') as HTMLInputElement | null;
-                if (input) {
-                  input.click();
-                }
+                fileInputRef.current?.click();
               }}
             >
               <i
