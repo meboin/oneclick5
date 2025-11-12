@@ -531,7 +531,14 @@ export default function CalendarWidget({ isOpen, onClose, events, onCreateTempla
           </button>
         </div>
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b border-white/20">
+        {/*
+          To align the day columns with the weekly grid (which has 8 columns: one for
+          time labels and seven for the days), include an empty first cell. This
+          prevents misalignment between the time column and the day headers.
+        */}
+        <div className="grid grid-cols-8 border-b border-white/20">
+          {/* Empty cell to align with time column */}
+          <div className="border-r border-white/20"></div>
           {['월', '화', '수', '목', '금', '토', '일'].map(day => (
             <div
               key={day}

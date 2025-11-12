@@ -352,13 +352,22 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                   </button>
                 </div>
               ))}
-              <label
-                htmlFor="file-upload"
+              {/*
+                Replace label with a button to trigger the hidden file input. Using a label
+                with htmlFor inside a form can cause the file dialog to open when other
+                form controls (like the submit button) are clicked. A button avoids this.
+              */}
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById('file-upload') as HTMLInputElement | null;
+                  if (input) input.click();
+                }}
                 className="cursor-pointer flex items-center justify-center text-blue-600 hover:text-blue-700 mt-2"
               >
                 <i className="ri-add-line w-4 h-4 flex items-center justify-center mr-1"></i>
                 <span className="text-sm">파일 추가</span>
-              </label>
+              </button>
             </div>
           ) : (
             <div
