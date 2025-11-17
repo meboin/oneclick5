@@ -114,11 +114,18 @@ export default function TemplateStorage({
   const displayHeight = isCollapsed ? HEADER_HEIGHT : height;
 
   return (
-    <div
-      ref={containerRef}
-      className="bg-white border-t border-gray-100 relative z-20"
-      style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
-    >
+    <>
+      {/* 배경 확장용 요소: 템플릿 저장 공간 뒤에 흰색 배경을 늘리기 위해 사용합니다. */}
+      <div
+        aria-hidden="true"
+        className="fixed bottom-0 left-0 right-0 bg-white z-10"
+        style={{ height: `${displayHeight}px` }}
+      ></div>
+      <div
+        ref={containerRef}
+        className="bg-white relative z-20"
+        style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
+      >
       {/* 리사이즈 핸들 */}
       <div
         className={`absolute top-0 left-0 right-0 h-1 cursor-ns-resize ${isResizing ? 'bg-blue-500/30' : 'hover:bg-blue-500/20'}`}
@@ -199,5 +206,6 @@ export default function TemplateStorage({
         </div>
       )}
     </div>
+    </>
   );
 }
