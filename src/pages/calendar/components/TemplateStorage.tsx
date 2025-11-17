@@ -14,8 +14,8 @@ const COLLAPSED_KEY = 'template-storage-collapsed';
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
-// 자동 접힘 임계값을 0으로 설정하여 드래그 중에는 자동으로 접히지 않도록 합니다.
-const COLLAPSE_THRESHOLD = 0;
+// 템플릿 저장 공간의 접힘 높이. 이 높이보다 작아지면 자동으로 접히도록 합니다.
+const COLLAPSE_THRESHOLD = 60;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -68,10 +68,14 @@ export default function TemplateStorage({
       if (!isResizing) return;
       const deltaY = startY - e.clientY;
       const newHeight = startHeight + deltaY;
-      // 자동 접힘을 제거하여 사용자가 설정한 높이를 그대로 반영합니다.
-      const clampedHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
-      setIsCollapsed(false);
-      setHeight(clampedHeight);
+      // 높이가 임계값 이하로 내려가면 접힘 상태로 전환하여 아래에 붙도록 합니다.
+      if (newHeight <= COLLAPSE_THRESHOLD) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+        const clampedHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
+        setHeight(clampedHeight);
+      }
     };
     const handleMouseUp = () => {
       setIsResizing(false);
