@@ -16,9 +16,9 @@ const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
 // 템플릿 저장 공간의 접힘 높이. 이 높이보다 작아지면 자동으로 접히도록 합니다.
 // 접힘 상태의 헤더(타이틀 바) 높이. 드래그 시 이 높이를 기준으로 계산합니다.
-// 헤더(패딩과 버튼 포함) 높이 약 42px + 리사이즈 핸들 1px + 경계선 높이를 고려해
-// 전체 접힘 높이를 약 44px로 설정합니다. 이렇게 해야 접혔을 때 하단 선과 헤더 프레임이 정확히 맞습니다.
-const HEADER_HEIGHT = 44;
+// 헤더(패딩과 버튼 포함) 높이 약 40px, 리사이즈 핸들 1px, 경계선 1px을 더해
+// 전체 접힘 높이를 약 42px로 설정합니다. 이렇게 해야 접혔을 때 하단 선과 헤더 프레임이 더 정확히 맞습니다.
+const HEADER_HEIGHT = 42;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -125,7 +125,7 @@ export default function TemplateStorage({
         onMouseDown={handleMouseDown}
         title="드래그하여 크기 조절"
       >
-        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-300 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
+        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-200 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
       <div className="flex items-center justify-between p-2 border-b border-gray-200">
