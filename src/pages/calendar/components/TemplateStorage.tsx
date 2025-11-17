@@ -14,7 +14,8 @@ const COLLAPSED_KEY = 'template-storage-collapsed';
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
-const COLLAPSE_THRESHOLD = 100;
+// 자동 접힘 임계값을 0으로 설정하여 드래그 중에는 자동으로 접히지 않도록 합니다.
+const COLLAPSE_THRESHOLD = 0;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -67,14 +68,10 @@ export default function TemplateStorage({
       if (!isResizing) return;
       const deltaY = startY - e.clientY;
       const newHeight = startHeight + deltaY;
-      if (newHeight <= COLLAPSE_THRESHOLD) {
-        setIsCollapsed(true);
-        setHeight(INITIAL_HEIGHT);
-      } else {
-        setIsCollapsed(false);
-        const clampedHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
-        setHeight(clampedHeight);
-      }
+      // 자동 접힘을 제거하여 사용자가 설정한 높이를 그대로 반영합니다.
+      const clampedHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
+      setIsCollapsed(false);
+      setHeight(clampedHeight);
     };
     const handleMouseUp = () => {
       setIsResizing(false);
@@ -114,7 +111,7 @@ export default function TemplateStorage({
         onMouseDown={handleMouseDown}
         title="드래그하여 크기 조절"
       >
-        <div className={`absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-300 rounded-b mt-0.5 ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
+        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-300 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
       <div className="flex items-center justify-between p-2 border-b border-gray-200">
