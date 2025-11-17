@@ -16,9 +16,9 @@ const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
 // 템플릿 저장 공간의 접힘 높이. 이 높이보다 작아지면 자동으로 접히도록 합니다.
 // 접힘 상태의 헤더(타이틀 바) 높이. 드래그 시 이 높이를 기준으로 계산합니다.
-// 헤더(패딩과 버튼 포함) 높이 약 40px, 리사이즈 핸들 1px을 더해 전체 접힘 높이를 약 40px로 설정합니다.
-// 이전보다 조금 더 줄여 헤더 프레임과 선의 오차를 최소화했습니다.
-const HEADER_HEIGHT = 40;
+// 헤더(패딩과 버튼 포함) 높이를 늘려 탬플릿 저장 공간 뒤 회색 영역을 가리도록 합니다.
+// 드래그 핸들 1px과 경계선을 포함해 전체 접힘 높이를 약 60px로 설정합니다.
+const HEADER_HEIGHT = 60;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -114,18 +114,11 @@ export default function TemplateStorage({
   const displayHeight = isCollapsed ? HEADER_HEIGHT : height;
 
   return (
-    <>
-      {/* 배경 확장용 요소: 템플릿 저장 공간 뒤에 흰색 배경을 늘리기 위해 사용합니다. */}
-      <div
-        aria-hidden="true"
-        className="fixed bottom-0 left-0 right-0 bg-white z-10"
-        style={{ height: `${displayHeight}px` }}
-      ></div>
-      <div
-        ref={containerRef}
-        className="bg-white relative z-20"
-        style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
-      >
+    <div
+      ref={containerRef}
+      className="bg-white border-t border-gray-100 relative z-20"
+      style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
+    >
       {/* 리사이즈 핸들 */}
       <div
         className={`absolute top-0 left-0 right-0 h-1 cursor-ns-resize ${isResizing ? 'bg-blue-500/30' : 'hover:bg-blue-500/20'}`}
@@ -135,7 +128,7 @@ export default function TemplateStorage({
         <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-100 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-2 border-b border-gray-100">
+      <div className="flex items-center justify-between p-3 border-b border-gray-100">
         <h3 className="text-sm font-semibold text-gray-900">템플릿 저장 공간</h3>
         <button
           onClick={toggleCollapse}
@@ -147,7 +140,7 @@ export default function TemplateStorage({
       </div>
       {/* 콘텐츠 영역 */}
       {!isCollapsed && (
-        <div className="p-3 overflow-y-auto" style={{ height: `${height - 60}px` }}>
+        <div className="p-3 overflow-y-auto" style={{ height: `${height - HEADER_HEIGHT}px` }}>
           {templates.length === 0 ? (
             <div className="text-center py-4 text-gray-500">
               <i className="ri-folder-open-line w-8 h-8 flex items-center justify-center mx-auto mb-2 text-gray-300"></i>
@@ -206,6 +199,5 @@ export default function TemplateStorage({
         </div>
       )}
     </div>
-    </>
   );
 }
