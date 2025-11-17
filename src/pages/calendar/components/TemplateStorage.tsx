@@ -17,9 +17,10 @@ const INITIAL_HEIGHT = 300;
 const COLLAPSE_THRESHOLD = 100;
 
 /**
- * 템플릿 저장 공간 컴포넌트. 아래에 고정되어 있고 드래그하여 높이를 조절할 수
- * 있으며 템플릿 목록을 렌더링하고 선택/수정/삭제 기능을 제공합니다. 높이와
- * 접힘 상태는 localStorage에 저장되어 유지됩니다.
+ * 템플릿 저장 공간 컴포넌트.
+ * 주간/월간 보기와 비슷한 비율로 축소하기 위해 폰트 크기와 버튼 크기를 줄였습니다.
+ * 아래에 고정되어 있고 드래그하여 높이를 조절할 수 있으며 템플릿 목록을 렌더링하고
+ * 선택/수정/삭제 기능을 제공합니다. 높이와 접힘 상태는 localStorage에 저장되어 유지됩니다.
  */
 export default function TemplateStorage({
   templates,
@@ -109,76 +110,76 @@ export default function TemplateStorage({
     >
       {/* 리사이즈 핸들 */}
       <div
-        className={`absolute top-0 left-0 right-0 h-2 cursor-ns-resize ${isResizing ? 'bg-blue-500/30' : 'hover:bg-blue-500/20'}`}
+        className={`absolute top-0 left-0 right-0 h-1 cursor-ns-resize ${isResizing ? 'bg-blue-500/30' : 'hover:bg-blue-500/20'}`}
         onMouseDown={handleMouseDown}
         title="드래그하여 크기 조절"
       >
-        <div className={`absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-gray-300 rounded-b mt-0.5 ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
+        <div className={`absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-300 rounded-b mt-0.5 ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">템플릿 저장 공간</h3>
+      <div className="flex items-center justify-between p-2 border-b border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-900">템플릿 저장 공간</h3>
         <button
           onClick={toggleCollapse}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
+          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
           title={isCollapsed ? '펼치기' : '접기'}
         >
-          <i className={`w-4 h-4 flex items-center justify-center ${isCollapsed ? 'ri-arrow-up-line' : 'ri-arrow-down-line'}`}></i>
+          <i className={`w-3 h-3 flex items-center justify-center ${isCollapsed ? 'ri-arrow-up-line' : 'ri-arrow-down-line'}`}></i>
         </button>
       </div>
       {/* 콘텐츠 영역 */}
       {!isCollapsed && (
-        <div className="p-4 overflow-y-auto" style={{ height: `${height - 80}px` }}>
+        <div className="p-3 overflow-y-auto" style={{ height: `${height - 60}px` }}>
           {templates.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <i className="ri-folder-open-line w-12 h-12 flex items-center justify-center mx-auto mb-3 text-gray-300"></i>
+            <div className="text-center py-4 text-gray-500">
+              <i className="ri-folder-open-line w-8 h-8 flex items-center justify-center mx-auto mb-2 text-gray-300"></i>
               <p>저장된 템플릿이 없습니다</p>
-              <p className="text-sm">새 템플릿을 생성해보세요</p>
+              <p className="text-xs">새 템플릿을 생성해보세요</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
               {templates.map(template => (
                 <div
                   key={template.id}
-                  className={`p-3 border rounded-lg cursor-pointer group ${
+                  className={`p-2 border rounded-lg cursor-pointer group ${
                     selectedTemplate?.id === template.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
                   draggable
                   onDragStart={e => handleDragStart(e, template)}
                   onClick={() => onSelectTemplate(template)}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: template.color }}></div>
+                  <div className="flex items-start justify-between mb-1">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: template.color }}></div>
                     <div className="flex space-x-1 opacity-0 group-hover:opacity-100">
                       <button
                         onClick={e => {
                           e.stopPropagation();
                           onEditTemplate(template);
                         }}
-                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-blue-600 cursor-pointer"
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 cursor-pointer"
                         title="수정"
                       >
-                        <i className="ri-edit-line w-3 h-3 flex items-center justify-center"></i>
+                        <i className="ri-edit-line w-2.5 h-2.5 flex items-center justify-center"></i>
                       </button>
                       <button
                         onClick={e => {
                           e.stopPropagation();
                           onDeleteTemplate(template.id);
                         }}
-                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-600 cursor-pointer"
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600 cursor-pointer"
                         title="삭제"
                       >
-                        <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
+                        <i className="ri-delete-bin-line w-2.5 h-2.5 flex items-center justify-center"></i>
                       </button>
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 text-sm mb-1 truncate">{template.name}</h4>
-                  <p className="text-xs text-gray-600 mb-2 line-clamp-2">{template.description || '설명 없음'}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <h4 className="font-medium text-gray-900 text-[10px] mb-1 truncate">{template.name}</h4>
+                  <p className="text-[9px] text-gray-600 mb-1 line-clamp-2">{template.description || '설명 없음'}</p>
+                  <div className="flex items-center justify-between text-[8px] text-gray-500">
                     <span>
                       {Math.floor(template.duration / 60)}시간 {template.duration % 60}분
                     </span>
-                    <i className="ri-drag-move-line w-3 h-3 flex items-center justify-center opacity-50"></i>
+                    <i className="ri-drag-move-line w-2.5 h-2.5 flex items-center justify-center opacity-50"></i>
                   </div>
                 </div>
               ))}
