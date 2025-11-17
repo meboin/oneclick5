@@ -15,7 +15,8 @@ const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
 // 템플릿 저장 공간의 접힘 높이. 이 높이보다 작아지면 자동으로 접히도록 합니다.
-const COLLAPSE_THRESHOLD = 60;
+// 접힘 상태의 헤더(타이틀 바) 높이. 드래그 시 이 높이를 기준으로 계산합니다.
+const HEADER_HEIGHT = 60;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -57,9 +58,12 @@ export default function TemplateStorage({
 
   // 리사이즈 시작
   const handleMouseDown = (e: React.MouseEvent) => {
+    // 리사이즈 시작 시 현재 보여지는 높이를 기준으로 합니다. 접힘 상태라면 헤더 높이(60px)를 사용합니다.
     setIsResizing(true);
     setStartY(e.clientY);
-    setStartHeight(height);
+    // startHeight는 현재 표시되는 높이로 설정합니다. 접힘 상태에서는 HEADER_HEIGHT를 기준으로 하여
+    // 클릭 시 컨테이너가 갑자기 원래 높이로 튀어오르지 않도록 합니다.
+    setStartHeight(isCollapsed ? HEADER_HEIGHT : height);
     e.preventDefault();
   };
   // 리사이즈 처리
@@ -68,11 +72,14 @@ export default function TemplateStorage({
       if (!isResizing) return;
       const deltaY = startY - e.clientY;
       const newHeight = startHeight + deltaY;
-      // 높이가 임계값 이하로 내려가면 접힘 상태로 전환하여 아래에 붙도록 합니다.
-      if (newHeight <= COLLAPSE_THRESHOLD) {
+      // 새 높이가 헤더 높이보다 작거나 같으면 접힘 상태로 전환합니다. 그 이하로는 더 내려가지 않습니다.
+      if (newHeight <= HEADER_HEIGHT) {
         setIsCollapsed(true);
       } else {
+        // 접힘 상태를 해제하고 높이를 업데이트합니다. 여기서 startHeight는 클릭 시 기준이므로
+        // 드래그에 따라 자연스럽게 늘어나며 이전 높이로 갑작스럽게 이동하지 않습니다.
         setIsCollapsed(false);
+        // 최소 높이보다 작을 경우에는 최소 높이를 적용합니다.
         const clampedHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
         setHeight(clampedHeight);
       }
@@ -101,7 +108,8 @@ export default function TemplateStorage({
   const handleDragStart = (e: React.DragEvent, template: Template) => {
     e.dataTransfer.setData('template', JSON.stringify(template));
   };
-  const displayHeight = isCollapsed ? 60 : height;
+  // 화면에 표시되는 높이는 접힘 상태일 경우 헤더 높이만 보여줍니다.
+  const displayHeight = isCollapsed ? HEADER_HEIGHT : height;
 
   return (
     <div
