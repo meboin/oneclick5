@@ -16,9 +16,9 @@ const MAX_HEIGHT = 600;
 const INITIAL_HEIGHT = 300;
 // 템플릿 저장 공간의 접힘 높이. 이 높이보다 작아지면 자동으로 접히도록 합니다.
 // 접힘 상태의 헤더(타이틀 바) 높이. 드래그 시 이 높이를 기준으로 계산합니다.
-// 헤더(패딩과 버튼 포함) 높이 약 40px, 리사이즈 핸들 1px, 경계선 1px을 더해
-// 전체 접힘 높이를 약 42px로 설정합니다. 이렇게 해야 접혔을 때 하단 선과 헤더 프레임이 더 정확히 맞습니다.
-const HEADER_HEIGHT = 42;
+// 헤더(패딩과 버튼 포함) 높이 약 40px, 리사이즈 핸들 1px을 더해 전체 접힘 높이를 약 40px로 설정합니다.
+// 이전보다 조금 더 줄여 헤더 프레임과 선의 오차를 최소화했습니다.
+const HEADER_HEIGHT = 40;
 
 /**
  * 템플릿 저장 공간 컴포넌트.
@@ -116,7 +116,7 @@ export default function TemplateStorage({
   return (
     <div
       ref={containerRef}
-      className="bg-white border-t border-gray-200 relative z-20"
+      className="bg-white border-t border-gray-100 relative z-20"
       style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
     >
       {/* 리사이즈 핸들 */}
@@ -125,10 +125,10 @@ export default function TemplateStorage({
         onMouseDown={handleMouseDown}
         title="드래그하여 크기 조절"
       >
-        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-200 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
+        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-100 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-2 border-b border-gray-200">
+      <div className="flex items-center justify-between p-2 border-b border-gray-100">
         <h3 className="text-sm font-semibold text-gray-900">템플릿 저장 공간</h3>
         <button
           onClick={toggleCollapse}
