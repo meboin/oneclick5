@@ -10,30 +10,17 @@ interface MonthViewProps {
   onEditTemplate: (template: Template) => void;
 }
 
-const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+const DAYS = ['월','화','수','목','금','토','일'];
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
 /**
  * 월간 보기 컴포넌트. 한 달을 표시하고 각 날짜에 있는 이벤트 수를 보여줍니다.
- * 날짜를 클릭하면 새로운 이벤트를 추가하거나 상세 팝업을 표시합니다.
+ * 주간 보기와 글자 크기 비율을 맞추기 위해 상세 팝업과 일정 수 표시 영역의 텍스트 크기를 조정했습니다.
  */
-export default function MonthView({
-  events,
-  selectedTemplate,
-  onAddEvent,
-  onDeleteEvent,
-  onEditTemplate
-}: MonthViewProps) {
+export default function MonthView({ events, selectedTemplate, onAddEvent, onDeleteEvent, onEditTemplate }: MonthViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    event: CalendarEvent;
-  } | null>(null);
-  const [selectedDayEvents, setSelectedDayEvents] = useState<{
-    date: string;
-    events: CalendarEvent[];
-  } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: CalendarEvent; } | null>(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: string; events: CalendarEvent[]; } | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -68,19 +55,12 @@ export default function MonthView({
     });
   }
 
-  const goToPrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
+  const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
 
   /**
-   * 셀 클릭 핸들러: 일정이 있는 경우 상세 팝업을, 없고 템플릿이 선택된 경우
-   * 새 일정을 생성합니다.
+   * 셀 클릭 핸들러: 일정이 있는 경우 상세 팝업을, 없고 템플릿이 선택된 경우 새 일정을 생성합니다.
    */
   const handleCellClick = (e: React.MouseEvent, dayData: any) => {
     if (!dayData.isCurrentMonth) return;
@@ -99,9 +79,7 @@ export default function MonthView({
         templateId: selectedTemplate.id,
         template: selectedTemplate,
         startTime: '09:00',
-        endTime: `${9 + Math.floor(selectedTemplate.duration / 60)}:${(selectedTemplate.duration % 60)
-          .toString()
-          .padStart(2, '0')}`,
+        endTime: `${9 + Math.floor(selectedTemplate.duration / 60)}:${(selectedTemplate.duration % 60).toString().padStart(2, '0')}`,
         day: dayOfWeek
       });
     }
@@ -112,24 +90,40 @@ export default function MonthView({
    */
   const handleEventClick = async (event: CalendarEvent) => {
     const template = event.template;
-    // 첨부 파일이 있으면 그것을 우선 열기
-    if (template.fileData) {
+    // 열 첨부파일 먼저
+    if (template.attachments && template.attachments.length > 0) {
+      for (const att of template.attachments) {
+        if (att.fileData) {
+          try {
+            const response = await fetch(att.fileData);
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            window.open(objectUrl, '_blank');
+          } catch {
+            window.open(att.fileData, '_blank');
+          }
+        } else if ((att as any).file && (att as any).file instanceof File) {
+          const objectUrl = URL.createObjectURL((att as any).file);
+          window.open(objectUrl, '_blank');
+        }
+      }
+    } else if ((template as any).fileData) {
+      // backwards compatibility
       try {
-        const response = await fetch(template.fileData);
+        const response = await fetch((template as any).fileData);
         const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
         window.open(objectUrl, '_blank');
       } catch {
-        window.open(template.fileData, '_blank');
+        window.open((template as any).fileData, '_blank');
       }
       return;
-    }
-    if (template.file && template.file instanceof File) {
-      const objectUrl = URL.createObjectURL(template.file);
+    } else if ((template as any).file && (template as any).file instanceof File) {
+      const objectUrl = URL.createObjectURL((template as any).file);
       window.open(objectUrl, '_blank');
       return;
     }
-    // 파일이 없으면 모든 URL을 새 탭으로 열기
+    // 마지막으로 URL
     if (template.urls && template.urls.length > 0) {
       const validUrls = template.urls.filter(url => url.trim());
       if (validUrls.length > 0) {
@@ -139,7 +133,6 @@ export default function MonthView({
         return;
       }
     }
-    // 아무것도 없으면 아무 동작 없음
   };
 
   /**
@@ -225,20 +218,21 @@ export default function MonthView({
         {calendarDays.map((dayData, index) => {
           const dayEvents = getEventsForDay(dayData);
           const isTodayCell = isToday(dayData);
+          // Determine background classes: grey for non-current month, otherwise white with hover tint depending on events/selection
+          let bgClass = '';
+          if (!dayData.isCurrentMonth) {
+            bgClass = 'bg-gray-100 hover:bg-gray-150';
+          } else if (dayEvents.length > 0) {
+            bgClass = 'bg-white hover:bg-green-50';
+          } else if (selectedTemplate) {
+            bgClass = 'bg-white hover:bg-blue-50';
+          } else {
+            bgClass = 'bg-white hover:bg-gray-50';
+          }
           return (
             <div
               key={index}
-              className={`border-r border-b border-gray-200 last:border-r-0 p-2 cursor-pointer transition-colors min-h-[120px] ${
-                !dayData.isCurrentMonth
-                  ? 'bg-gray-100 hover:bg-gray-150'
-                  : dayData.isCurrentMonth
-                  ? dayEvents.length > 0
-                    ? 'hover:bg-green-50'
-                    : selectedTemplate
-                    ? 'hover:bg-blue-50'
-                    : 'hover:bg-gray-50'
-                  : 'bg-gray-50'
-              }`}
+              className={`border-r border-b border-gray-200 last:border-r-0 p-2 cursor-pointer transition-colors min-h-[120px] ${bgClass}`}
               onClick={e => handleCellClick(e, dayData)}
             >
               <div className="flex flex-col h-full">
@@ -246,11 +240,9 @@ export default function MonthView({
                   className={`text-sm font-medium mb-2 ${
                     !dayData.isCurrentMonth
                       ? 'text-gray-400'
-                      : dayData.isCurrentMonth
-                      ? isTodayCell
-                        ? 'text-blue-600 bg-blue-100 w-6 h-6 rounded-full flex items-center justify-center'
-                        : 'text-gray-900'
-                      : 'text-gray-400'
+                      : isTodayCell
+                      ? 'text-blue-600 bg-blue-100 w-6 h-6 rounded-full flex items-center justify-center'
+                      : 'text-gray-900'
                   }`}
                 >
                   {dayData.date}
@@ -269,10 +261,10 @@ export default function MonthView({
                 >
                   {dayEvents.length > 0 && dayData.isCurrentMonth && (
                     <div className="text-center cursor-pointer hover:scale-110 transition-transform">
-                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium mb-1 hover:bg-blue-600">
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-medium mb-1 hover:bg-blue-600">
                         {dayEvents.length}
                       </div>
-                      <div className="text-xs text-gray-600">일정</div>
+                      <div className="text-[9px] text-gray-600">일정</div>
                     </div>
                   )}
                 </div>
@@ -307,14 +299,14 @@ export default function MonthView({
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm">
+                        <h4 className="font-medium text-gray-900 text-[10px]">
                           {event.template.name}
                         </h4>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-[9px] text-gray-600 mt-1">
                           {event.startTime} - {event.endTime}
                         </p>
                         {event.template.description && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-[9px] text-gray-500 mt-1">
                             {event.template.description}
                           </p>
                         )}
@@ -364,7 +356,7 @@ export default function MonthView({
           </button>
           <button
             onClick={handleDeleteEventFromContext}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap"
+            className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap"
           >
             <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center mr-2"></i>
             삭제

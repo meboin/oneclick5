@@ -15,6 +15,7 @@ const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','
 
 /**
  * 월간 보기 컴포넌트. 한 달을 표시하고 각 날짜에 있는 이벤트 수를 보여줍니다.
+ * 주간 보기와 글자 크기 비율을 맞추기 위해 상세 팝업과 일정 수 표시 영역의 텍스트 크기를 조정했습니다.
  */
 export default function MonthView({ events, selectedTemplate, onAddEvent, onDeleteEvent, onEditTemplate }: MonthViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -78,9 +79,7 @@ export default function MonthView({ events, selectedTemplate, onAddEvent, onDele
         templateId: selectedTemplate.id,
         template: selectedTemplate,
         startTime: '09:00',
-        endTime: `${9 + Math.floor(selectedTemplate.duration / 60)}:${(selectedTemplate.duration % 60)
-          .toString()
-          .padStart(2, '0')}`,
+        endTime: `${9 + Math.floor(selectedTemplate.duration / 60)}:${(selectedTemplate.duration % 60).toString().padStart(2, '0')}`,
         day: dayOfWeek
       });
     }
@@ -262,10 +261,10 @@ export default function MonthView({ events, selectedTemplate, onAddEvent, onDele
                 >
                   {dayEvents.length > 0 && dayData.isCurrentMonth && (
                     <div className="text-center cursor-pointer hover:scale-110 transition-transform">
-                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium mb-1 hover:bg-blue-600">
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-medium mb-1 hover:bg-blue-600">
                         {dayEvents.length}
                       </div>
-                      <div className="text-xs text-gray-600">일정</div>
+                      <div className="text-[9px] text-gray-600">일정</div>
                     </div>
                   )}
                 </div>
@@ -300,14 +299,14 @@ export default function MonthView({ events, selectedTemplate, onAddEvent, onDele
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm">
+                        <h4 className="font-medium text-gray-900 text-[10px]">
                           {event.template.name}
                         </h4>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-[9px] text-gray-600 mt-1">
                           {event.startTime} - {event.endTime}
                         </p>
                         {event.template.description && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-[9px] text-gray-500 mt-1">
                             {event.template.description}
                           </p>
                         )}
@@ -357,7 +356,7 @@ export default function MonthView({ events, selectedTemplate, onAddEvent, onDele
           </button>
           <button
             onClick={handleDeleteEventFromContext}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap"
+            className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap"
           >
             <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center mr-2"></i>
             삭제
