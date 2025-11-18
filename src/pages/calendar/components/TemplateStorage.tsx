@@ -116,7 +116,7 @@ export default function TemplateStorage({
   return (
     <div
       ref={containerRef}
-      className="bg-white border-t border-gray-100 relative z-20"
+      className="bg-white border-t border-gray-200 relative z-20"
       style={{ height: `${displayHeight}px`, position: 'fixed', bottom: 0, left: 0, right: 0, transition: isResizing ? 'none' : 'height 0.2s ease-out' }}
     >
       {/* 리사이즈 핸들 */}
@@ -128,7 +128,7 @@ export default function TemplateStorage({
         <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-100 rounded-b ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500'}`}></div>
       </div>
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-100">
+      <div className="flex items-center justify-between p-3 border-b border-gray-200">
         <h3 className="text-sm font-semibold text-gray-900">템플릿 저장 공간</h3>
         <button
           onClick={toggleCollapse}
