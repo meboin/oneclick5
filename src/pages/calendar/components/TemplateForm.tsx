@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Template } from '../../../types/calendar';
-import Button from '../../../components/base/Button';
 
 interface TemplateFormProps {
   onSubmit: (template: Omit<Template, 'id'>) => void;
@@ -8,6 +7,7 @@ interface TemplateFormProps {
   editingTemplate?: Template | null;
 }
 
+// Preset colours used for template chips.
 const PRESET_COLORS = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
   '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
@@ -20,8 +20,8 @@ const DURATION_OPTIONS = [
   { label: '4시간', value: 240 }
 ];
 
-// 최대 첨부파일 총 용량 (5MB)
-const MAX_TOTAL_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+// Maximum total attachment size (20MB)
+const MAX_TOTAL_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
 interface Attachment {
   file?: File;
@@ -36,16 +36,14 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     description: '',
     color: PRESET_COLORS[0],
     duration: 60,
-    urls: ['']
+    urls: [''],
+    apps: ['']
   });
-
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-
-  // 파일 입력 요소에 직접 접근하기 위한 ref. id를 사용하지 않고 ref로 클릭을 트리거합니다.
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Populate form when editing
+  // Populate form when editing existing template
   useEffect(() => {
     if (editingTemplate) {
       setFormData({
@@ -53,24 +51,18 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         description: editingTemplate.description || '',
         color: editingTemplate.color,
         duration: editingTemplate.duration,
-        urls: editingTemplate.urls && editingTemplate.urls.length > 0 ? editingTemplate.urls : ['']
+        urls: editingTemplate.urls && editingTemplate.urls.length > 0 ? editingTemplate.urls : [''],
+        apps: editingTemplate.apps && editingTemplate.apps.length > 0 ? editingTemplate.apps : ['']
       });
-      // Convert existing attachments to internal state; handle old fileData if present
       const existing: Attachment[] = [];
-      if ((editingTemplate as any).attachments && (editingTemplate as any).attachments.length > 0) {
+      if (editingTemplate.attachments && editingTemplate.attachments.length > 0) {
         existing.push(
-          ...(editingTemplate as any).attachments.map((att: any) => ({
+          ...editingTemplate.attachments.map(att => ({
             fileData: att.fileData,
             fileName: att.fileName,
             fileType: att.fileType
           }))
         );
-      } else if ((editingTemplate as any).fileData) {
-        existing.push({
-          fileData: (editingTemplate as any).fileData,
-          fileName: (editingTemplate as any).fileName || '',
-          fileType: (editingTemplate as any).fileType || ''
-        });
       }
       setAttachments(existing);
     } else {
@@ -79,17 +71,18 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         description: '',
         color: PRESET_COLORS[0],
         duration: 60,
-        urls: ['']
+        urls: [''],
+        apps: ['']
       });
       setAttachments([]);
     }
   }, [editingTemplate]);
 
-  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
     const validUrls = formData.urls.filter(url => url.trim() !== '');
+    const validApps = formData.apps.filter(app => app.trim() !== '');
     const serializableAttachments = attachments.map(att => ({
       fileData: att.fileData,
       fileName: att.fileName,
@@ -98,21 +91,20 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     onSubmit({
       ...formData,
       urls: validUrls,
+      apps: validApps,
       attachments: serializableAttachments
     } as Omit<Template, 'id'>);
   };
 
-  // handle URL updates
+  // URL handlers
   const handleUrlChange = (index: number, value: string) => {
     const newUrls = [...formData.urls];
     newUrls[index] = value;
     setFormData({ ...formData, urls: newUrls });
   };
-
   const addUrl = () => {
     setFormData({ ...formData, urls: [...formData.urls, ''] });
   };
-
   const removeUrl = (index: number) => {
     if (formData.urls.length > 1) {
       const newUrls = formData.urls.filter((_, i) => i !== index);
@@ -120,9 +112,25 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     }
   };
 
-  // Read a File into a data URL
+  // App handlers
+  const handleAppChange = (index: number, value: string) => {
+    const newApps = [...formData.apps];
+    newApps[index] = value;
+    setFormData({ ...formData, apps: newApps });
+  };
+  const addApp = () => {
+    setFormData({ ...formData, apps: [...formData.apps, ''] });
+  };
+  const removeApp = (index: number) => {
+    if (formData.apps.length > 1) {
+      const newApps = formData.apps.filter((_, i) => i !== index);
+      setFormData({ ...formData, apps: newApps });
+    }
+  };
+
+  // File reading helper
   const readFile = (file: File): Promise<Attachment> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = () => {
         resolve({
@@ -136,12 +144,11 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     });
   };
 
-  // handle file input (multiple) with size limit
+  // Handle file input
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList) return;
     const files = Array.from(fileList);
-    // current total size of existing attachments
     let totalSize = attachments.reduce((sum, att) => sum + (att.file?.size || 0), 0);
     const newAtts: Attachment[] = [];
     for (const file of files) {
@@ -156,20 +163,18 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     if (newAtts.length > 0) {
       setAttachments(prev => [...prev, ...newAtts]);
     }
-    // reset input value to allow re-selecting same files
     e.target.value = '';
   };
 
+  // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
   };
-
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -192,11 +197,9 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       }
     }
   };
-
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
-
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -207,81 +210,67 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* 템플릿 이름 */}
+      {/* Template name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          템플릿 이름 *
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">템플릿 이름 *</label>
         <input
           type="text"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={e => setFormData({ ...formData, name: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           placeholder="템플릿 이름을 입력하세요"
           required
         />
       </div>
-      {/* 템플릿 설명 */}
+      {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          템플릿 설명
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">템플릿 설명</label>
         <textarea
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={e => setFormData({ ...formData, description: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           rows={3}
           placeholder="템플릿에 대한 설명을 입력하세요"
         />
       </div>
-      {/* 색상 선택 */}
+      {/* Color selection */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          색상
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">색상</label>
         <div className="flex space-x-2">
-          {PRESET_COLORS.map((color) => (
+          {PRESET_COLORS.map(color => (
             <button
               key={color}
               type="button"
               onClick={() => setFormData({ ...formData, color })}
-              className={`w-8 h-8 rounded-full border-2 cursor-pointer ${
-                formData.color === color ? 'border-gray-900' : 'border-gray-300'
-              }`}
+              className={`w-8 h-8 rounded-full border-2 cursor-pointer ${formData.color === color ? 'border-gray-900' : 'border-gray-300'}`}
               style={{ backgroundColor: color }}
             />
           ))}
         </div>
       </div>
-      {/* 시간 설정 */}
+      {/* Duration */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          시간 설정
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">시간 설정</label>
         <select
           value={formData.duration}
-          onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+          onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })}
           className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
         >
-          {DURATION_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
+          {DURATION_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
       </div>
-      {/* URL 입력 */}
+      {/* URLs */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          URL
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
         <div className="space-y-2">
           {formData.urls.map((url, index) => (
             <div key={index} className="flex items-center space-x-2">
               <input
                 type="url"
                 value={url}
-                onChange={(e) => handleUrlChange(index, e.target.value)}
+                onChange={e => handleUrlChange(index, e.target.value)}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 placeholder="https://example.com"
               />
@@ -306,11 +295,43 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           </button>
         </div>
       </div>
-      {/* 파일 첨부 */}
+      {/* Apps */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          파일 첨부
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
+        <div className="space-y-2">
+          {formData.apps.map((app, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={app}
+                onChange={e => handleAppChange(index, e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                placeholder="앱 이름을 입력하세요"
+              />
+              {formData.apps.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeApp(index)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
+                >
+                  <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addApp}
+            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 cursor-pointer"
+          >
+            <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
+            <span className="text-sm">앱 추가</span>
+          </button>
+        </div>
+      </div>
+      {/* File attachment */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">파일 첨부</label>
         <div
           className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
             isDragOver
@@ -355,7 +376,6 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                   </button>
                 </div>
               ))}
-              {/* 기존 label 대신 버튼을 사용하고 ref를 통해 파일 입력을 트리거합니다. */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -368,9 +388,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           ) : (
             <div
               className="cursor-pointer flex flex-col items-center justify-center"
-              onClick={() => {
-                fileInputRef.current?.click();
-              }}
+              onClick={() => fileInputRef.current?.click()}
             >
               <i
                 className={`ri-upload-cloud-line w-8 h-8 flex items-center justify-center mb-2 ${
@@ -381,7 +399,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                 {isDragOver ? '파일을 놓아주세요' : '파일을 선택하거나 드래그하세요'}
               </span>
               <span className="text-xs text-gray-400 mt-1">
-                PDF, DOC, TXT, 이미지 파일 등 여러 파일을 첨부할 수 있습니다 (총 용량 5MB 이하)
+                PDF, DOC, TXT, 이미지 파일 등 여러 파일을 첨부할 수 있습니다 (총 용량 20MB 이하)
               </span>
             </div>
           )}
@@ -389,12 +407,10 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       </div>
       {/* Action buttons */}
       <div className="flex space-x-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-          취소
-        </Button>
-        <Button type="submit" className="flex-1">
+        <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 border rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50 text-sm">취소</button>
+        <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
           {editingTemplate ? '수정' : '생성'}
-        </Button>
+        </button>
       </div>
     </form>
   );

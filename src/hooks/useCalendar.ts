@@ -1,77 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Template, CalendarEvent, ViewMode } from '../types/calendar';
+import type { CalendarData, CalendarEvent, Template, ViewMode } from '../types/calendar';
 
 /**
  * Keys used for localStorage persistence. Separating these into constants
- * makes it easier to update the storage strategy in the future and avoids
- * accidental typos when reading/writing values.
+ * makes it easier to update the storage strategy in the future.
  */
-const TEMPLATES_KEY = 'calendar-templates';
-const EVENTS_KEY = 'calendar-events';
+const CALENDARS_KEY = 'calendar-calendars';
+const SELECTED_CALENDAR_KEY = 'calendar-selected-calendar';
 const VIEW_MODE_KEY = 'calendar-view-mode';
-const SELECTED_TEMPLATE_KEY = 'calendar-selected-template';
 
 /**
- * Remove non‑serialisable fields from templates when saving to
- * localStorage. Each attachment keeps only its base64 data and
- * metadata; the File object is stripped.  All other properties are
- * preserved.
- */
-function sanitizeTemplates(templates: Template[]): Template[] {
-  return templates.map(t => {
-    let cleanedAttachments;
-    if (t.attachments) {
-      cleanedAttachments = t.attachments.map(att => ({
-        fileData: att.fileData,
-        fileName: att.fileName,
-        fileType: att.fileType
-      }));
-    }
-    return {
-      ...t,
-      attachments: cleanedAttachments
-    } as Template;
-  });
-}
-
-/**
- * Remove non‑serialisable fields from events when saving to localStorage.
- * Each event references a template, which may contain attachments with File
- * objects.  These File objects are stripped while preserving data URLs.
- */
-function sanitizeEvents(events: CalendarEvent[]): CalendarEvent[] {
-  return events.map(event => {
-    let cleanedAttachments;
-    if (event.template.attachments) {
-      cleanedAttachments = event.template.attachments.map(att => ({
-        fileData: att.fileData,
-        fileName: att.fileName,
-        fileType: att.fileType
-      }));
-    }
-    return {
-      ...event,
-      template: {
-        ...event.template,
-        attachments: cleanedAttachments
-      }
-    } as CalendarEvent;
-  });
-}
-
-/**
- * Custom hook that manages calendar state: templates, events, view mode and
- * selected template. It persists state to localStorage so the user can
- * leave and return to the site without losing their data.
+ * Custom hook that manages multiple calendars, their templates and events.
+ * Each calendar stores its own templates and events. The selected calendar
+ * determines which templates and events are currently displayed. All data
+ * persists to localStorage so the user can leave and return without losing
+ * their schedule.
  */
 export function useCalendar() {
-  // Load templates from localStorage on initial render
-  const [templates, setTemplates] = useState<Template[]>(() => {
+  // Load calendars from localStorage on initial render.
+  const [calendars, setCalendars] = useState<CalendarData[]>(() => {
     if (typeof window === 'undefined') return [];
-    const saved = localStorage.getItem(TEMPLATES_KEY);
+    const saved = localStorage.getItem(CALENDARS_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return JSON.parse(saved) as CalendarData[];
       } catch {
         return [];
       }
@@ -79,194 +31,177 @@ export function useCalendar() {
     return [];
   });
 
-  // Load events from localStorage on initial render
-  const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const saved = localStorage.getItem(EVENTS_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
+  // Load selected calendar ID from localStorage or default to first calendar.
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const saved = localStorage.getItem(SELECTED_CALENDAR_KEY);
+    return saved || null;
   });
 
-  // Load view mode from localStorage or default to 'week'
+  // Load view mode from localStorage or default to 'week'.
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'week';
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     return saved === 'month' || saved === 'week' ? (saved as ViewMode) : 'week';
   });
 
-  // Selected template is restored after templates load
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-
-  // Restore selected template from localStorage when templates change
+  // Persist calendars whenever they change.
   useEffect(() => {
-    const savedId = localStorage.getItem(SELECTED_TEMPLATE_KEY);
-    if (savedId) {
+    if (typeof window !== 'undefined') {
       try {
-        const id = JSON.parse(savedId);
-        const found = templates.find(t => t.id === id);
-        if (found) {
-          setSelectedTemplate(found);
-        }
-      } catch {
-        // ignore if parsing fails
+        localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+      } catch (e) {
+        console.error('Failed to save calendars:', e);
       }
     }
-  }, [templates]);
+  }, [calendars]);
 
-  // Persist templates to localStorage whenever they change
+  // Persist selected calendar ID whenever it changes.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(TEMPLATES_KEY, JSON.stringify(sanitizeTemplates(templates)));
-    } catch (e) {
-      console.error('Failed to save templates:', e);
+    if (typeof window !== 'undefined') {
+      if (selectedCalendarId) {
+        localStorage.setItem(SELECTED_CALENDAR_KEY, selectedCalendarId);
+      } else {
+        localStorage.removeItem(SELECTED_CALENDAR_KEY);
+      }
     }
-  }, [templates]);
+  }, [selectedCalendarId]);
 
-  // Persist events to localStorage whenever they change
+  // Persist view mode whenever it changes.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(EVENTS_KEY, JSON.stringify(sanitizeEvents(events)));
-    } catch (e) {
-      console.error('Failed to save events:', e);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(VIEW_MODE_KEY, viewMode);
     }
-  }, [events]);
-
-  // Persist view mode to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(VIEW_MODE_KEY, viewMode);
   }, [viewMode]);
 
-  // Persist selected template ID to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (selectedTemplate) {
-      localStorage.setItem(SELECTED_TEMPLATE_KEY, JSON.stringify(selectedTemplate.id));
-    } else {
-      localStorage.removeItem(SELECTED_TEMPLATE_KEY);
-    }
-  }, [selectedTemplate]);
+  /**
+   * Returns the currently selected calendar. If no calendar is selected
+   * the first calendar in the list is returned, or undefined.
+   */
+  const selectedCalendar: CalendarData | undefined = calendars.find(c => c.id === selectedCalendarId) || calendars[0];
 
   /**
-   * Add a new template. Generates a unique ID and updates state.
+   * Create a new calendar with the given name and select it.
+   */
+  const addCalendar = (name: string) => {
+    const id = Date.now().toString();
+    const newCal: CalendarData = { id, name, templates: [], events: [] };
+    setCalendars(prev => [...prev, newCal]);
+    setSelectedCalendarId(id);
+  };
+
+  /**
+   * Select a calendar by ID.
+   */
+  const selectCalendar = (id: string) => {
+    setSelectedCalendarId(id);
+  };
+
+  /**
+   * Helper to update a calendar by ID.
+   */
+  const updateCalendar = (id: string, updater: (cal: CalendarData) => CalendarData) => {
+    setCalendars(prev => prev.map(c => (c.id === id ? updater(c) : c)));
+  };
+
+  /**
+   * Add a new template to the selected calendar.
    */
   const addTemplate = (templateData: Omit<Template, 'id'>) => {
-    const newTemplate: Template = {
-      ...templateData,
-      id: Date.now().toString()
-    };
-    setTemplates(prev => [...prev, newTemplate]);
+    if (!selectedCalendar) return;
+    const newTemplate: Template = { ...templateData, id: Date.now().toString() };
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      templates: [...cal.templates, newTemplate]
+    }));
   };
 
   /**
-   * Update an existing template. Replaces the template in the list and
-   * updates all events referencing it. If the selected template is the
-   * one being updated, the selection is updated as well. Also recalculates
-   * end times for events when the duration changes.
+   * Update an existing template in the selected calendar.
    */
   const updateTemplate = (templateId: string, templateData: Omit<Template, 'id'>) => {
-    setTemplates(prev => prev.map(t => (t.id === templateId ? { ...templateData, id: templateId } : t)));
-
-    // Update selected template if necessary
-    if (selectedTemplate?.id === templateId) {
-      setSelectedTemplate({ ...templateData, id: templateId });
-    }
-
-    // Update events referencing this template
-    setEvents(prevEvents =>
-      prevEvents.map(event => {
-        if (event.template.id !== templateId) return event;
-        // Recalculate endTime based on new duration
-        const [startHour, startMinute] = event.startTime.split(':').map(Number);
-        const startTotalMinutes = startHour * 60 + startMinute;
-        const endTotalMinutes = startTotalMinutes + templateData.duration;
-        const endHour = Math.floor(endTotalMinutes / 60);
-        const endMinute = endTotalMinutes % 60;
-        const newEndTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+    if (!selectedCalendar) return;
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      templates: cal.templates.map(t => (t.id === templateId ? { ...templateData, id: templateId } : t)),
+      events: cal.events.map(event => {
+        if (event.templateId !== templateId) return event;
+        // Only update template if the user intends to update original template.
         return {
           ...event,
-          endTime: newEndTime,
-          template: { ...templateData, id: templateId }
+          // Keep the event's template independent by merging updated data with its own copy.
+          template: { ...event.template, ...templateData, id: templateId }
         };
       })
-    );
+    }));
   };
 
   /**
-   * Delete a template and all events referencing it. Clears the selected
-   * template if it matches the deleted one.
+   * Delete a template and all associated events in the selected calendar.
    */
   const deleteTemplate = (templateId: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== templateId));
-    setEvents(prev => prev.filter(event => event.template.id !== templateId));
-    if (selectedTemplate?.id === templateId) {
-      setSelectedTemplate(null);
-    }
+    if (!selectedCalendar) return;
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      templates: cal.templates.filter(t => t.id !== templateId),
+      events: cal.events.filter(e => e.templateId !== templateId)
+    }));
   };
 
   /**
-   * Add a new event. Generates a unique ID.
+   * Add a new event to the selected calendar. An independent copy of the template
+   * is stored with the event to decouple it from future template updates.
    */
-  const addEvent = (eventData: Omit<CalendarEvent, 'id'>) => {
+  const addEvent = (eventData: Omit<CalendarEvent, 'id' | 'template'> & { template: Template }) => {
+    if (!selectedCalendar) return;
     const newEvent: CalendarEvent = {
       ...eventData,
-      id: Date.now().toString()
+      id: Date.now().toString(),
+      template: { ...eventData.template },
+      templateId: eventData.template.id
     };
-    setEvents(prev => [...prev, newEvent]);
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      events: [...cal.events, newEvent]
+    }));
   };
 
   /**
-   * Delete an event by ID.
+   * Delete an event by ID in the selected calendar.
    */
   const deleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
+    if (!selectedCalendar) return;
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      events: cal.events.filter(e => e.id !== eventId)
+    }));
   };
 
   /**
-   * Update an event by ID with partial updates. Use this to move events
-   * between days or adjust times. Does not recalculate endTime based on
-   * template duration; that should be handled when updating templates.
+   * Update an event by ID in the selected calendar. Does not recalculate endTime; that
+   * should be handled by the caller if template duration changes.
    */
   const updateEvent = (eventId: string, updates: Partial<CalendarEvent>) => {
-    setEvents(prev => prev.map(e => (e.id === eventId ? { ...e, ...updates } : e)));
-  };
-
-  /**
-   * Select or toggle a template for creating new events. If the same
-   * template is already selected, deselect it.
-   */
-  const selectTemplate = (template: Template) => {
-    setSelectedTemplate(prev => (prev?.id === template.id ? null : template));
-  };
-
-  /**
-   * Clear the selected template.
-   */
-  const clearSelection = () => {
-    setSelectedTemplate(null);
+    if (!selectedCalendar) return;
+    updateCalendar(selectedCalendar.id, cal => ({
+      ...cal,
+      events: cal.events.map(e => (e.id === eventId ? { ...e, ...updates } : e))
+    }));
   };
 
   return {
-    templates,
-    events,
+    calendars,
+    selectedCalendarId,
+    selectedCalendar,
     viewMode,
-    selectedTemplate,
     setViewMode,
+    addCalendar,
+    selectCalendar,
     addTemplate,
     updateTemplate,
     deleteTemplate,
     addEvent,
     deleteEvent,
-    updateEvent,
-    selectTemplate,
-    clearSelection
+    updateEvent
   };
 }
