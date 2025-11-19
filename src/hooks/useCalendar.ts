@@ -74,6 +74,25 @@ export function useCalendar() {
     }
   }, [viewMode]);
 
+  // Selected template across calendars. When multiple calendars are present,
+  // the selected template refers to the template chosen for creating new events
+  // in the current calendar. It does not persist across calendar switches.
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+
+  /**
+   * Select or toggle a template for creating new events. If the same
+   * template is already selected, deselect it. When switching calendars,
+   * the selection is cleared.
+   */
+  const selectTemplate = (template: Template) => {
+    setSelectedTemplate(prev => (prev?.id === template.id ? null : template));
+  };
+
+  /** Clear the selected template. */
+  const clearSelection = () => {
+    setSelectedTemplate(null);
+  };
+
   /**
    * Returns the currently selected calendar. If no calendar is selected
    * the first calendar in the list is returned, or undefined.
@@ -193,8 +212,12 @@ export function useCalendar() {
     calendars,
     selectedCalendarId,
     selectedCalendar,
+    // Expose templates and events of the selected calendar for convenience
+    templates: selectedCalendar?.templates ?? [],
+    events: selectedCalendar?.events ?? [],
     viewMode,
     setViewMode,
+    selectedTemplate,
     addCalendar,
     selectCalendar,
     addTemplate,
@@ -202,6 +225,8 @@ export function useCalendar() {
     deleteTemplate,
     addEvent,
     deleteEvent,
-    updateEvent
+    updateEvent,
+    selectTemplate,
+    clearSelection
   };
 }
