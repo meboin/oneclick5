@@ -50,12 +50,57 @@ export default function WeekView({
   };
 
   /**
-   * 이벤트 클릭 핸들러: 템플릿에 연결된 URL과 첨부 파일을 열어줍니다. attachments 배열이 있으면
-   * 모든 첨부파일을 열고, 이후 URL을 열어줍니다.
+   * 이벤트 클릭 핸들러: 템플릿에 연결된 URL, 앱 파일, 첨부 파일을 열어줍니다.
+   * 우선 순위는 앱 파일(appFiles) → 첨부파일(attachments) → 단일 fileData/file → URL 목록 입니다.
    */
   const handleEventClick = async (event: CalendarEvent) => {
     const template = event.template;
-    // 먼저 첨부파일들을 모두 열린다
+    // 1. 앱 파일이 있는 경우 우선적으로 실행합니다.
+    //    Windows 바로가기(.lnk) 파일을 포함한 앱 첨부는 실제 실행 파일의 경로를 포함하지 않기 때문에
+    //    브라우저에서 직접 실행할 수 없습니다. 대신 사용자의 컴퓨터에 다운로드하여
+    //    사용자가 직접 실행할 수 있도록 합니다. 각 첨부 파일에 대해 blob URL을 만들어
+    //    다운로드 링크를 트리거합니다. 기존에 남아 있는 File 객체가 있을 경우에도 동일하게 처리합니다.
+    if ((template as any).appFiles && (template as any).appFiles.length > 0) {
+      for (const att of (template as any).appFiles) {
+        try {
+          if (att.fileData) {
+            const response = await fetch(att.fileData);
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            // use original filename if available, otherwise fallback to generic name
+            link.download = att.fileName || 'app-shortcut.lnk';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
+          } else if ((att as any).file && (att as any).file instanceof File) {
+            const objectUrl = URL.createObjectURL((att as any).file);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = ((att as any).file as File).name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
+          }
+        } catch {
+          // fallback: open the data URL directly. this may trigger a download.
+          const fallbackUrl = (att as any).fileData || '';
+          if (fallbackUrl) {
+            const a = document.createElement('a');
+            a.href = fallbackUrl;
+            a.download = att.fileName || 'app-shortcut.lnk';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        }
+      }
+      return;
+    }
+    // 2. 첨부파일을 모두 연다
     if (template.attachments && template.attachments.length > 0) {
       for (const att of template.attachments) {
         if (att.fileData) {
@@ -91,7 +136,7 @@ export default function WeekView({
       window.open(objectUrl, '_blank');
       return;
     }
-    // 마지막으로 모든 URL을 열기
+    // 3. 마지막으로 모든 URL을 열기
     if (template.urls && template.urls.length > 0) {
       const validUrls = template.urls.filter(url => url.trim());
       if (validUrls.length > 0) {
@@ -297,7 +342,7 @@ export default function WeekView({
           </button>
           <button
             onClick={handleDeleteEventFromContext}
-            className="w-full px-3 py-1.5 text-left text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap"
+            className="w-full px-3 py-1.5 text-left text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap text-xs"
           >
             <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center mr-1.5"></i>
             삭제

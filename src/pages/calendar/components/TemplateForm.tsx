@@ -67,6 +67,16 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
   const [newLinkName, setNewLinkName] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('https://');
 
+  // Index of the URL input row whose saved-link dropdown is open. When null, no dropdown is visible.
+  const [openUrlMenuIndex, setOpenUrlMenuIndex] = useState<number | null>(null);
+  // State for displaying a context menu on a saved link item. The context menu appears
+  // on right-click and allows editing or deleting a saved link. It contains the screen
+  // coordinates and the index of the saved link.
+  const [savedLinkMenu, setSavedLinkMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  // When editing an existing saved link, this holds its index in the saved-links array.
+  // On save, the link at this index will be replaced instead of appending a new one.
+  const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
+
   // Populate form when editing existing template
   useEffect(() => {
     if (editingTemplate) {
@@ -114,6 +124,58 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       setAppFiles([]);
     }
   }, [editingTemplate]);
+
+  /**
+   * Context menu handler for saved link items. Records the click position and item index
+   * so that a small menu can be displayed allowing the user to edit or delete the link.
+   */
+  const handleSavedLinkContextMenu = (e: React.MouseEvent, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSavedLinkMenu({ x: e.clientX, y: e.clientY, index: idx });
+  };
+
+  /**
+   * Initiates editing of a saved link. Loads the saved link's name and URL into the
+   * form fields and opens the link-editing panel. Marks the index being edited so
+   * that the save handler will replace the existing entry instead of appending a new one.
+   */
+  const editSavedLink = (idx: number) => {
+    try {
+      const saved: { name: string; url: string }[] = JSON.parse(
+        localStorage.getItem('calendar-saved-links') || '[]'
+      );
+      const item = saved[idx];
+      if (item) {
+        setNewLinkName(item.name);
+        setNewLinkUrl(item.url);
+        setAddLinkOpen(true);
+        setEditingLinkIndex(idx);
+      }
+    } catch {
+      /* ignore */
+    }
+    setSavedLinkMenu(null);
+  };
+
+  /**
+   * Deletes a saved link from localStorage. Removes the item at the given index and
+   * persists the updated list back to storage. Hides any open context menu after deletion.
+   */
+  const deleteSavedLink = (idx: number) => {
+    try {
+      const saved: { name: string; url: string }[] = JSON.parse(
+        localStorage.getItem('calendar-saved-links') || '[]'
+      );
+      if (idx >= 0 && idx < saved.length) {
+        saved.splice(idx, 1);
+        localStorage.setItem('calendar-saved-links', JSON.stringify(saved));
+      }
+    } catch {
+      /* ignore */
+    }
+    setSavedLinkMenu(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,13 +428,23 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                         const trimmedUrl = newLinkUrl.trim();
                         if (trimmedName !== '' && trimmedUrl !== '') {
                           try {
-                            const current = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
-                            current.push({ name: trimmedName, url: trimmedUrl });
+                            const current: { name: string; url: string }[] = JSON.parse(
+                              localStorage.getItem('calendar-saved-links') || '[]'
+                            );
+                            if (editingLinkIndex !== null && editingLinkIndex >= 0 && editingLinkIndex < current.length) {
+                              // Replace existing entry when editing
+                              current[editingLinkIndex] = { name: trimmedName, url: trimmedUrl };
+                            } else {
+                              // Append new saved link otherwise
+                              current.push({ name: trimmedName, url: trimmedUrl });
+                            }
                             localStorage.setItem('calendar-saved-links', JSON.stringify(current));
                           } catch {
                             // ignore errors
                           }
                         }
+                        // Reset editing state and close the panel
+                        setEditingLinkIndex(null);
                         setAddLinkOpen(false);
                         setNewLinkName('');
                         setNewLinkUrl('https://');
@@ -389,73 +461,74 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         </div>
         <div className="space-y-2">
           {formData.urls.map((url, index) => (
-            <div key={index} className="flex items-center space-x-2 relative">
-              <input
-                type="url"
-                value={url}
-                onChange={e => handleUrlChange(index, e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                placeholder="https://example.com"
-              />
-              {/* Dropdown for saved links */}
-              <div className="relative flex items-stretch">
+            <div key={index} className="relative">
+              {/* URL input with integrated arrow */}
+              <div className="flex items-center relative">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={e => handleUrlChange(index, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm pr-8"
+                  placeholder="https://example.com"
+                />
                 <button
                   type="button"
                   onClick={e => {
                     e.preventDefault();
-                    const btn = e.currentTarget as HTMLElement;
-                    const menu = btn.nextSibling as HTMLElement;
-                    if (menu) {
-                      menu.classList.toggle('hidden');
-                    }
+                    setOpenUrlMenuIndex(openUrlMenuIndex === index ? null : index);
                   }}
-                  className="px-2 flex items-center border-l border-gray-300 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  className="absolute right-0 top-0 h-full px-2 flex items-center border-l border-gray-300 text-gray-500 hover:text-gray-700 focus:outline-none rounded-r-lg"
                   title="저장된 링크 선택"
                 >
                   <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center"></i>
                 </button>
-                <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 hidden max-h-40 overflow-y-auto">
-                  {(() => {
-                    let saved: { name: string; url: string }[] = [];
-                    if (typeof window !== 'undefined') {
-                      try {
-                        saved = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
-                      } catch {
-                        saved = [];
-                      }
-                    }
-                    if (saved.length === 0) {
-                      return (
-                        <div className="px-3 py-2 text-sm text-gray-500">저장된 링크가 없습니다</div>
-                      );
-                    }
-                    return saved.map((item, idx) => (
-                      <div
-                        key={idx}
-                        onClick={e => {
-                          e.preventDefault();
-                          handleUrlChange(index, item.url);
-                          // Hide menu
-                          const menu = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
-                          menu.classList.add('hidden');
-                        }}
-                        className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
-                      >
-                        {item.name}
-                      </div>
-                    ));
-                  })()}
-                </div>
+                {formData.urls.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeUrl(index)}
+                    className="absolute -right-8 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
+                  >
+                    <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
+                  </button>
+                )}
               </div>
-              {formData.urls.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeUrl(index)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
-                >
-                  <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
-                </button>
-              )}
+              {/* Saved links dropdown */}
+              <div
+                className={`absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 ${
+                  openUrlMenuIndex === index ? '' : 'hidden'
+                } max-h-60 overflow-y-auto`}
+                onMouseLeave={() => setOpenUrlMenuIndex(null)}
+              >
+                {(() => {
+                  let saved: { name: string; url: string }[] = [];
+                  if (typeof window !== 'undefined') {
+                    try {
+                      saved = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
+                    } catch {
+                      saved = [];
+                    }
+                  }
+                  if (saved.length === 0) {
+                    return (
+                      <div className="px-3 py-2 text-sm text-gray-500">저장된 링크가 없습니다</div>
+                    );
+                  }
+                  return saved.map((item, idx) => (
+                    <div
+                      key={idx}
+                      onClick={e => {
+                        e.preventDefault();
+                        handleUrlChange(index, item.url);
+                        setOpenUrlMenuIndex(null);
+                      }}
+                      onContextMenu={e => handleSavedLinkContextMenu(e, idx)}
+                      className="flex justify-between items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                    >
+                      <span className="flex-1 truncate">{item.name}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
           ))}
           <button
@@ -632,6 +705,31 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           {editingTemplate ? '수정' : '생성'}
         </button>
       </div>
+      {/* Context menu for saved URL templates (appears on right-click) */}
+      {savedLinkMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{ left: savedLinkMenu.x, top: savedLinkMenu.y }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => editSavedLink(savedLinkMenu.index)}
+            className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center whitespace-nowrap"
+          >
+            <i className="ri-edit-line w-3 h-3 flex items-center justify-center mr-1.5"></i>
+            수정
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteSavedLink(savedLinkMenu.index)}
+            className="w-full px-3 py-1.5 text-left text-red-600 hover:bg-red-50 flex items-center whitespace-nowrap text-xs"
+          >
+            <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center mr-1.5"></i>
+            삭제
+          </button>
+        </div>
+      )}
     </form>
   );
 }
