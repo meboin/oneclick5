@@ -192,13 +192,6 @@ export default function CalendarHeader({
               }`}></i>
             </button>
             {isDropdownOpen && (
-              {/*
-               * Position the dropdown directly beneath the arrow button. Previously
-               * the menu was aligned to the left of its container which pushed
-               * it too far to the right of the arrow. By centering the menu
-               * relative to the arrow using left-1/2 and a negative translate,
-               * the dropdown now appears directly below the toggle button.
-               */}
               <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
                 <div className="max-h-60 overflow-y-auto">
                   {calendars.map((cal, index) => (
