@@ -11,6 +11,19 @@ export interface Attachment {
   file?: File;
 }
 
+export interface AppLink {
+  /**
+   * Human‑readable name of the application (e.g. "Notion", "VS Code").
+   */
+  name: string;
+  /**
+   * Optional URL or URI scheme to launch or link to the application (e.g. "notion://",
+   * "vscode://", or a web URL). This field is optional to support apps without
+   * a known protocol.
+   */
+  url?: string;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -19,8 +32,9 @@ export interface Template {
   duration: number; // minutes
   /** A list of URLs associated with this template. */
   urls?: string[];
-  /** A list of installed apps associated with this template. */
-  apps?: string[];
+  /** A list of applications associated with this template. Each entry holds a
+   *  name and an optional URL/URI scheme. */
+  apps?: AppLink[];
   /** An array of file attachments; persists base64 data and metadata. */
   attachments?: Attachment[];
 }

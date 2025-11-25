@@ -19,12 +19,17 @@ export default function CalendarPage() {
   const {
     calendars,
     selectedCalendar,
+    selectedCalendarId,
     templates,
     events,
     viewMode,
     setViewMode,
     selectedTemplate,
     addCalendar,
+    selectCalendar,
+    renameCalendar,
+    deleteCalendar,
+    reorderCalendars,
     addTemplate,
     updateTemplate,
     deleteTemplate,
@@ -136,12 +141,25 @@ export default function CalendarPage() {
     setIsWidgetOpen(false);
   };
 
-  // Create new calendar handler
-  const handleAddCalendar = () => {
-    // Generate a default name: 시간표1, 시간표2, ...
-    const nextIndex = calendars.length + 1;
-    const name = `시간표${nextIndex}`;
+  // Create a new calendar with the given name
+  const handleAddCalendar = (name: string) => {
     addCalendar(name);
+  };
+  // Select a calendar by ID
+  const handleSelectCalendar = (id: string) => {
+    selectCalendar(id);
+  };
+  // Rename a calendar
+  const handleRenameCalendar = (id: string, newName: string) => {
+    renameCalendar(id, newName);
+  };
+  // Delete a calendar
+  const handleDeleteCalendar = (id: string) => {
+    deleteCalendar(id);
+  };
+  // Reorder calendars
+  const handleReorderCalendars = (from: number, to: number) => {
+    reorderCalendars(from, to);
   };
 
   return (
@@ -156,8 +174,13 @@ export default function CalendarPage() {
         onToggleWidget={handleToggleWidget}
         isWidgetOpen={isWidgetOpen}
         alertCount={alerts.length}
+        calendars={calendars}
+        selectedCalendarId={selectedCalendarId}
+        onSelectCalendar={handleSelectCalendar}
+        onRenameCalendar={handleRenameCalendar}
+        onDeleteCalendar={handleDeleteCalendar}
+        onReorderCalendars={handleReorderCalendars}
         onCreateCalendar={handleAddCalendar}
-        calendarName={selectedCalendar?.name}
       />
       <div className="flex" style={{ height: 'calc(100vh - 50px - 60px)' }}>
         <div className="flex-1 flex flex-col">

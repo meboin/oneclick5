@@ -37,7 +37,8 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     color: PRESET_COLORS[0],
     duration: 60,
     urls: [''],
-    apps: ['']
+    // Each app entry has a name and optional url. Initialise with one blank object.
+    apps: [{ name: '', url: '' }]
   });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -52,7 +53,9 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         color: editingTemplate.color,
         duration: editingTemplate.duration,
         urls: editingTemplate.urls && editingTemplate.urls.length > 0 ? editingTemplate.urls : [''],
-        apps: editingTemplate.apps && editingTemplate.apps.length > 0 ? editingTemplate.apps : ['']
+        apps: editingTemplate.apps && editingTemplate.apps.length > 0
+          ? editingTemplate.apps.map(app => ({ name: app.name, url: app.url || '' }))
+          : [{ name: '', url: '' }]
       });
       const existing: Attachment[] = [];
       if (editingTemplate.attachments && editingTemplate.attachments.length > 0) {
@@ -72,7 +75,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         color: PRESET_COLORS[0],
         duration: 60,
         urls: [''],
-        apps: ['']
+        apps: [{ name: '', url: '' }]
       });
       setAttachments([]);
     }
@@ -82,7 +85,9 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     e.preventDefault();
     if (!formData.name.trim()) return;
     const validUrls = formData.urls.filter(url => url.trim() !== '');
-    const validApps = formData.apps.filter(app => app.trim() !== '');
+    const validApps = formData.apps
+      .filter(app => app.name.trim() !== '')
+      .map(app => ({ name: app.name.trim(), url: app.url?.trim() || undefined }));
     const serializableAttachments = attachments.map(att => ({
       fileData: att.fileData,
       fileName: att.fileName,
@@ -113,13 +118,18 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
   };
 
   // App handlers
-  const handleAppChange = (index: number, value: string) => {
+  const handleAppNameChange = (index: number, value: string) => {
     const newApps = [...formData.apps];
-    newApps[index] = value;
+    newApps[index] = { ...newApps[index], name: value };
+    setFormData({ ...formData, apps: newApps });
+  };
+  const handleAppUrlChange = (index: number, value: string) => {
+    const newApps = [...formData.apps];
+    newApps[index] = { ...newApps[index], url: value };
     setFormData({ ...formData, apps: newApps });
   };
   const addApp = () => {
-    setFormData({ ...formData, apps: [...formData.apps, ''] });
+    setFormData({ ...formData, apps: [...formData.apps, { name: '', url: '' }] });
   };
   const removeApp = (index: number) => {
     if (formData.apps.length > 1) {
@@ -295,40 +305,47 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           </button>
         </div>
       </div>
-      {/* Apps */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
-        <div className="space-y-2">
-          {formData.apps.map((app, index) => (
-            <div key={index} className="flex items-center space-x-2">
+       {/* Apps */}
+       <div>
+         <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
+         <div className="space-y-2">
+           {formData.apps.map((app, index) => (
+             <div key={index} className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                <input
                  type="text"
-                 value={app}
-                 onChange={e => handleAppChange(index, e.target.value)}
+                 value={app.name}
+                 onChange={e => handleAppNameChange(index, e.target.value)}
                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                 placeholder="앱 이름을 입력하세요 (예: Notion, VS Code, Discord)"
+                 placeholder="앱 이름 (예: Notion)"
                />
-              {formData.apps.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeApp(index)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
-                >
-                  <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addApp}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 cursor-pointer"
-          >
-            <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-            <span className="text-sm">앱 추가</span>
-          </button>
-        </div>
-      </div>
+               <input
+                 type="text"
+                 value={app.url || ''}
+                 onChange={e => handleAppUrlChange(index, e.target.value)}
+                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                 placeholder="앱 링크 (예: notion://)"
+               />
+               {formData.apps.length > 1 && (
+                 <button
+                   type="button"
+                   onClick={() => removeApp(index)}
+                   className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
+                 >
+                   <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
+                 </button>
+               )}
+             </div>
+           ))}
+           <button
+             type="button"
+             onClick={addApp}
+             className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 cursor-pointer"
+           >
+             <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
+             <span className="text-sm">앱 추가</span>
+           </button>
+         </div>
+       </div>
       {/* File attachment */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">파일 첨부</label>

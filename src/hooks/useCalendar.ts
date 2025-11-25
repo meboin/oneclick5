@@ -160,18 +160,14 @@ export function useCalendar() {
    */
   const updateTemplate = (templateId: string, templateData: Omit<Template, 'id'>) => {
     if (!selectedCalendar) return;
+    // When updating a template, only modify the template list. Do not update
+    // existing events so that events remain independent copies of their
+    // templates. This satisfies the requirement that changes in the template
+    // storage should not affect events already placed on the calendar.
     updateCalendar(selectedCalendar.id, cal => ({
       ...cal,
-      templates: cal.templates.map(t => (t.id === templateId ? { ...templateData, id: templateId } : t)),
-      events: cal.events.map(event => {
-        if (event.templateId !== templateId) return event;
-        // Only update template if the user intends to update original template.
-        return {
-          ...event,
-          // Keep the event's template independent by merging updated data with its own copy.
-          template: { ...event.template, ...templateData, id: templateId }
-        };
-      })
+      templates: cal.templates.map(t => (t.id === templateId ? { ...t, ...templateData, id: templateId } : t))
+      // leave cal.events unchanged
     }));
   };
 
@@ -180,10 +176,13 @@ export function useCalendar() {
    */
   const deleteTemplate = (templateId: string) => {
     if (!selectedCalendar) return;
+    // Remove the template from storage but keep events intact. Events store their
+    // own copy of the template and should remain even if the original template
+    // is deleted.
     updateCalendar(selectedCalendar.id, cal => ({
       ...cal,
-      templates: cal.templates.filter(t => t.id !== templateId),
-      events: cal.events.filter(e => e.templateId !== templateId)
+      templates: cal.templates.filter(t => t.id !== templateId)
+      // leave events unchanged
     }));
   };
 
@@ -228,6 +227,45 @@ export function useCalendar() {
     }));
   };
 
+  /**
+   * Rename a calendar. Updates the name of the calendar with the given ID.
+   */
+  const renameCalendar = (calendarId: string, newName: string) => {
+    setCalendars(prev => prev.map(c => (c.id === calendarId ? { ...c, name: newName } : c)));
+  };
+
+  /**
+   * Delete a calendar by ID. If the deleted calendar is currently selected,
+   * the selection is moved to the first remaining calendar, or cleared if none.
+   */
+  const deleteCalendar = (calendarId: string) => {
+    setCalendars(prev => {
+      const filtered = prev.filter(c => c.id !== calendarId);
+      // Update the selected calendar if it matches the deleted ID
+      if (selectedCalendarId === calendarId) {
+        if (filtered.length > 0) {
+          setSelectedCalendarId(filtered[0].id);
+        } else {
+          setSelectedCalendarId(null);
+        }
+      }
+      return filtered;
+    });
+  };
+
+  /**
+   * Reorder calendars. Moves the calendar at fromIndex to toIndex.
+   */
+  const reorderCalendars = (fromIndex: number, toIndex: number) => {
+    setCalendars(prev => {
+      const updated = [...prev];
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= updated.length || toIndex >= updated.length) return updated;
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+  };
+
   return {
     calendars,
     selectedCalendarId,
@@ -247,6 +285,10 @@ export function useCalendar() {
     deleteEvent,
     updateEvent,
     selectTemplate,
-    clearSelection
+    clearSelection,
+    // Calendar management helpers
+    renameCalendar,
+    deleteCalendar,
+    reorderCalendars
   };
 }

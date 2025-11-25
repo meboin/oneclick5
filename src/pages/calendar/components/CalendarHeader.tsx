@@ -1,4 +1,5 @@
-import { CalendarEvent } from '../../../types/calendar';
+import { CalendarEvent, CalendarData } from '../../../types/calendar';
+import { useState } from 'react';
 
 interface CalendarHeaderProps {
   viewMode: 'week' | 'month';
@@ -11,10 +12,20 @@ interface CalendarHeaderProps {
   isWidgetOpen: boolean;
   /** Number of pending alert notifications. Displays a red dot when > 0. */
   alertCount?: number;
-  /** Callback for creating a new schedule (calendar). */
-  onCreateCalendar?: () => void;
-  /** Optional current calendar name to display. */
-  calendarName?: string;
+  /** List of calendars to display in the drop‑down. */
+  calendars: CalendarData[];
+  /** ID of the currently selected calendar. */
+  selectedCalendarId: string | null;
+  /** Select a calendar by ID. */
+  onSelectCalendar: (id: string) => void;
+  /** Rename a calendar. */
+  onRenameCalendar: (id: string, newName: string) => void;
+  /** Delete a calendar. */
+  onDeleteCalendar: (id: string) => void;
+  /** Reorder calendars by moving fromIndex to toIndex. */
+  onReorderCalendars: (from: number, to: number) => void;
+  /** Create a new calendar with the provided name. */
+  onCreateCalendar: (name: string) => void;
 }
 
 /**
@@ -33,9 +44,17 @@ export default function CalendarHeader({
   onToggleWidget,
   isWidgetOpen,
   alertCount = 0,
-  onCreateCalendar,
-  calendarName
+  calendars,
+  selectedCalendarId,
+  onSelectCalendar,
+  onRenameCalendar,
+  onDeleteCalendar,
+  onReorderCalendars,
+  onCreateCalendar
 }: CalendarHeaderProps) {
+  // Determine the currently selected calendar name
+  const currentCalendar = calendars.find(c => c.id === selectedCalendarId);
+  const currentName = currentCalendar?.name || '캘린더';
   // Filter today's events for display
   const todayEvents = events.filter(event => {
     const today = new Date();
@@ -43,12 +62,47 @@ export default function CalendarHeader({
     const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     return event.day === adjustedDay;
   });
+  // Dropdown state and drag indices
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Handlers
+  const toggleDropdown = () => setDropdownOpen(prev => !prev);
+  const handleCreateCalendar = () => {
+    const name = typeof window !== 'undefined' ? window.prompt('새 시간표 이름을 입력하세요', '') : null;
+    if (name && name.trim() !== '') {
+      onCreateCalendar(name.trim());
+    }
+  };
+  const handleRename = (id: string, currentName: string) => {
+    const newName = typeof window !== 'undefined' ? window.prompt('새 이름을 입력하세요', currentName) : null;
+    if (newName && newName.trim() !== '' && newName !== currentName) {
+      onRenameCalendar(id, newName.trim());
+    }
+  };
+  const handleDelete = (id: string, name: string) => {
+    if (typeof window === 'undefined') return;
+    const confirmed = window.confirm(`${name} 시간표를 삭제하시겠습니까?`);
+    if (confirmed) {
+      onDeleteCalendar(id);
+    }
+  };
+  const handleDrop = () => {
+    if (draggingIndex !== null && dragOverIndex !== null && draggingIndex !== dragOverIndex) {
+      onReorderCalendars(draggingIndex, dragOverIndex);
+    }
+    setDraggingIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-3">
+    <div className="bg-white border-b border-gray-200 px-4 py-3 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          {/* Display current calendar name if provided */}
-          <h1 className="text-xl font-bold text-gray-900">{calendarName ?? '캘린더'}</h1>
+          {/* Current calendar name */}
+          <h1 className="text-xl font-bold text-gray-900">{currentName}</h1>
+          {/* View mode toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => onViewModeChange('week')}
@@ -68,14 +122,22 @@ export default function CalendarHeader({
             </button>
           </div>
           {/* New schedule button */}
-          {onCreateCalendar && (
-            <button
-              onClick={onCreateCalendar}
-              className="ml-2 px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
-            >
-              새 시간표
-            </button>
-          )}
+          <button
+            onClick={handleCreateCalendar}
+            className="ml-2 px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
+          >
+            새 시간표
+          </button>
+          {/* Dropdown toggle */}
+          <button
+            onClick={toggleDropdown}
+            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            title="시간표 선택"
+          >
+            <i className={`ri-arrow-down-s-line w-4 h-4 flex items-center justify-center transition-transform ${
+              isDropdownOpen ? 'rotate-180' : ''
+            }`}></i>
+          </button>
         </div>
         <div className="flex items-center space-x-2">
           {todayEvents.length > 0 && (
@@ -128,6 +190,76 @@ export default function CalendarHeader({
           </button>
         </div>
       </div>
+      {/* Calendar drop-down menu */}
+      {isDropdownOpen && (
+        <div className="absolute mt-2 left-4 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
+          <div className="max-h-60 overflow-y-auto">
+            {calendars.map((cal, index) => (
+              <div
+                key={cal.id}
+                className={`flex items-center space-x-2 px-3 py-2 cursor-pointer ${
+                  selectedCalendarId === cal.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
+                draggable
+                onDragStart={() => setDraggingIndex(index)}
+                onDragOver={e => {
+                  e.preventDefault();
+                  setDragOverIndex(index);
+                }}
+                onDrop={handleDrop}
+              >
+                {/* Drag handle */}
+                <i className="ri-drag-move-line text-gray-400"></i>
+                {/* Calendar name */}
+                <span
+                  className={`flex-1 text-sm ${selectedCalendarId === cal.id ? 'font-semibold' : ''}`}
+                  onClick={() => {
+                    onSelectCalendar(cal.id);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  {cal.name}
+                </span>
+                {/* Rename */}
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleRename(cal.id, cal.name);
+                  }}
+                  className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600"
+                  title="이름 수정"
+                >
+                  <i className="ri-edit-line w-3 h-3 flex items-center justify-center"></i>
+                </button>
+                {/* Delete */}
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDelete(cal.id, cal.name);
+                  }}
+                  className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600"
+                  title="삭제"
+                >
+                  <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-gray-100">
+            <button
+              onClick={() => {
+                setDropdownOpen(false);
+                handleCreateCalendar();
+              }}
+              className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-gray-50"
+            >
+              + 새 시간표 만들기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
