@@ -23,9 +23,13 @@ const DURATION_OPTIONS = [
 // Maximum total attachment size (20MB) for general attachments.
 const MAX_TOTAL_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
-// Maximum total size for application attachments. Application executables tend
-// to be larger than documents or images, so the limit is set higher (200MB).
-const MAX_TOTAL_APP_SIZE = 200 * 1024 * 1024;
+// Maximum total size for application attachments. Previously a hard limit
+// was enforced to prevent large executables from overwhelming the browser.
+// However, the application attachments section now accepts only lightweight
+// shortcut files (.lnk) and does not enforce a strict size limit. Setting
+// this constant to Infinity effectively removes the cap while still
+// documenting its purpose.
+const MAX_TOTAL_APP_SIZE = Infinity;
 
 interface Attachment {
   file?: File;
@@ -160,17 +164,11 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     const fileList = e.target.files;
     if (!fileList) return;
     const files = Array.from(fileList);
-    let totalSize = appFiles.reduce((sum, att) => sum + (att.file?.size || 0), 0);
+    // Application files now accept .lnk shortcuts only and no size limit is enforced.
     const newAtts: Attachment[] = [];
     for (const file of files) {
-      // Reuse the 20MB total limit for app files as well
-      if (totalSize + file.size > MAX_TOTAL_APP_SIZE) {
-        alert(`총 앱 파일 크기는 ${MAX_TOTAL_APP_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
-        break;
-      }
       const att = await readFile(file);
       newAtts.push(att);
-      totalSize += file.size;
     }
     if (newAtts.length > 0) {
       setAppFiles(prev => [...prev, ...newAtts]);
@@ -330,8 +328,10 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
               저장
             </button>
             {isAddLinkOpen && (
-              <div className="absolute right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3">
-                <div className="space-y-2">
+              <div className="absolute right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-4">
+                {/* Header for the saved link entry panel */}
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">링크 템플릿 저장</h4>
+                <div className="space-y-3">
                   <input
                     type="text"
                     value={newLinkName}
@@ -398,7 +398,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                 placeholder="https://example.com"
               />
               {/* Dropdown for saved links */}
-              <div className="relative">
+              <div className="relative flex items-stretch">
                 <button
                   type="button"
                   onClick={e => {
@@ -409,7 +409,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                       menu.classList.toggle('hidden');
                     }
                   }}
-                  className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 cursor-pointer"
+                  className="px-2 flex items-center border-l border-gray-300 text-gray-500 hover:text-gray-700 focus:outline-none"
                   title="저장된 링크 선택"
                 >
                   <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center"></i>
@@ -485,16 +485,10 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
              const droppedFiles = e.dataTransfer.files;
              if (droppedFiles.length > 0) {
                const files = Array.from(droppedFiles);
-               let totalSize = appFiles.reduce((sum, att) => sum + (att.file?.size || 0), 0);
                const newAtts: Attachment[] = [];
                for (const file of files) {
-                 if (totalSize + file.size > MAX_TOTAL_APP_SIZE) {
-                   alert(`총 앱 파일 크기는 ${MAX_TOTAL_APP_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
-                   break;
-                 }
                  const att = await readFile(file);
                  newAtts.push(att);
-                 totalSize += file.size;
                }
                if (newAtts.length > 0) {
                  setAppFiles(prev => [...prev, ...newAtts]);
@@ -508,7 +502,9 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
              className="hidden"
              multiple
              ref={appFileInputRef}
-             // Accept any file type; actual restrictions can be enforced by the host OS
+             // Accept only Windows shortcut files (.lnk). Executable attachments
+             // are not allowed to avoid large file uploads and memory errors.
+             accept=".lnk"
            />
            {appFiles.length > 0 ? (
              <div className="space-y-2">
@@ -538,7 +534,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                  className="cursor-pointer flex items-center justify-center text-blue-600 hover:text-blue-700 mt-2"
                >
                  <i className="ri-add-line w-4 h-4 flex items-center justify-center mr-1"></i>
-                 <span className="text-sm">앱 파일 추가</span>
+                 <span className="text-sm">앱 추가</span>
                </button>
              </div>
            ) : (
@@ -547,8 +543,8 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                onClick={() => appFileInputRef.current?.click()}
              >
                <i className="ri-upload-cloud-line w-8 h-8 flex items-center justify-center mb-2 text-gray-400"></i>
-               <span className="text-sm text-gray-600">앱 파일을 선택하거나 드래그하세요</span>
-               <span className="text-xs text-gray-400 mt-1">여러 앱 파일을 첨부할 수 있습니다 (총 용량 20MB 이하)</span>
+               <span className="text-sm text-gray-600">앱을 선택하거나 드래그하세요</span>
+               <span className="text-xs text-gray-400 mt-1">여러 앱을 첨부할 수 있습니다</span>
              </div>
            )}
          </div>
