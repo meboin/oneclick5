@@ -37,12 +37,20 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     color: PRESET_COLORS[0],
     duration: 60,
     urls: [''],
-    // Each app entry has a name and optional url. Initialise with one blank object.
-    apps: [{ name: '', url: '' }]
+    // Note: application files are tracked separately in `appFiles` state.
   });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Separate state for application files. These files represent actual
+  // executables or packages that the user wishes to include with the
+  // template. They follow the same Attachment structure used for general
+  // attachments but are stored in a distinct list to differentiate UI
+  // sections.
+  const [appFiles, setAppFiles] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Ref for the app file input. Using a separate ref avoids collisions
+  // between attachment and app file inputs when triggering the file picker.
+  const appFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Populate form when editing existing template
   useEffect(() => {
@@ -52,10 +60,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         description: editingTemplate.description || '',
         color: editingTemplate.color,
         duration: editingTemplate.duration,
-        urls: editingTemplate.urls && editingTemplate.urls.length > 0 ? editingTemplate.urls : [''],
-        apps: editingTemplate.apps && editingTemplate.apps.length > 0
-          ? editingTemplate.apps.map(app => ({ name: app.name, url: app.url || '' }))
-          : [{ name: '', url: '' }]
+        urls: editingTemplate.urls && editingTemplate.urls.length > 0 ? editingTemplate.urls : ['']
       });
       const existing: Attachment[] = [];
       if (editingTemplate.attachments && editingTemplate.attachments.length > 0) {
@@ -68,16 +73,30 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         );
       }
       setAttachments(existing);
+      // Load appFiles from editing template if present. The original template
+      // may include `appFiles` persisted from a previous session. Map these
+      // into the Attachment shape expected by the form state.
+      const existingApps: Attachment[] = [];
+      if ((editingTemplate as any).appFiles && (editingTemplate as any).appFiles.length > 0) {
+        existingApps.push(
+          ...((editingTemplate as any).appFiles as any[]).map((att: any) => ({
+            fileData: att.fileData,
+            fileName: att.fileName,
+            fileType: att.fileType
+          }))
+        );
+      }
+      setAppFiles(existingApps);
     } else {
       setFormData({
         name: '',
         description: '',
         color: PRESET_COLORS[0],
         duration: 60,
-        urls: [''],
-        apps: [{ name: '', url: '' }]
+        urls: ['']
       });
       setAttachments([]);
+      setAppFiles([]);
     }
   }, [editingTemplate]);
 
@@ -85,9 +104,12 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     e.preventDefault();
     if (!formData.name.trim()) return;
     const validUrls = formData.urls.filter(url => url.trim() !== '');
-    const validApps = formData.apps
-      .filter(app => app.name.trim() !== '')
-      .map(app => ({ name: app.name.trim(), url: app.url?.trim() || undefined }));
+    // Convert appFiles into serialisable attachments
+    const serializableAppFiles = appFiles.map(att => ({
+      fileData: att.fileData,
+      fileName: att.fileName,
+      fileType: att.fileType
+    }));
     const serializableAttachments = attachments.map(att => ({
       fileData: att.fileData,
       fileName: att.fileName,
@@ -96,7 +118,10 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     onSubmit({
       ...formData,
       urls: validUrls,
-      apps: validApps,
+      // Remove deprecated `apps` by explicitly setting undefined
+      apps: undefined,
+      // Save appFiles list on the template
+      appFiles: serializableAppFiles,
       attachments: serializableAttachments
     } as Omit<Template, 'id'>);
   };
@@ -117,25 +142,32 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     }
   };
 
-  // App handlers
-  const handleAppNameChange = (index: number, value: string) => {
-    const newApps = [...formData.apps];
-    newApps[index] = { ...newApps[index], name: value };
-    setFormData({ ...formData, apps: newApps });
-  };
-  const handleAppUrlChange = (index: number, value: string) => {
-    const newApps = [...formData.apps];
-    newApps[index] = { ...newApps[index], url: value };
-    setFormData({ ...formData, apps: newApps });
-  };
-  const addApp = () => {
-    setFormData({ ...formData, apps: [...formData.apps, { name: '', url: '' }] });
-  };
-  const removeApp = (index: number) => {
-    if (formData.apps.length > 1) {
-      const newApps = formData.apps.filter((_, i) => i !== index);
-      setFormData({ ...formData, apps: newApps });
+  // App file handlers
+  // These functions manage the selection and removal of application files. Users
+  // can upload multiple executables; each is stored in the `appFiles` state.
+  const handleAppFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList) return;
+    const files = Array.from(fileList);
+    let totalSize = appFiles.reduce((sum, att) => sum + (att.file?.size || 0), 0);
+    const newAtts: Attachment[] = [];
+    for (const file of files) {
+      // Reuse the 20MB total limit for app files as well
+      if (totalSize + file.size > MAX_TOTAL_ATTACHMENT_SIZE) {
+        alert(`총 앱 파일 크기는 ${MAX_TOTAL_ATTACHMENT_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
+        break;
+      }
+      const att = await readFile(file);
+      newAtts.push(att);
+      totalSize += file.size;
     }
+    if (newAtts.length > 0) {
+      setAppFiles(prev => [...prev, ...newAtts]);
+    }
+    e.target.value = '';
+  };
+  const removeAppFile = (index: number) => {
+    setAppFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // File reading helper
@@ -273,10 +305,37 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       </div>
       {/* URLs */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">URL</label>
+          {/* Add new saved link button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window === 'undefined') return;
+              const name = window.prompt('저장할 링크의 이름을 입력하세요', '');
+              if (!name || name.trim() === '') return;
+              const url = window.prompt('저장할 링크의 URL을 입력하세요', 'https://');
+              if (!url || url.trim() === '') return;
+              try {
+                const current = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
+                current.push({ name: name.trim(), url: url.trim() });
+                localStorage.setItem('calendar-saved-links', JSON.stringify(current));
+                // Inform the user
+                alert('링크가 저장되었습니다.');
+              } catch {
+                // ignore
+              }
+            }}
+            className="flex items-center text-blue-600 hover:text-blue-700 text-sm"
+            title="URL 템플릿 저장"
+          >
+            <i className="ri-add-circle-line w-4 h-4 flex items-center justify-center mr-1"></i>
+            저장
+          </button>
+        </div>
         <div className="space-y-2">
           {formData.urls.map((url, index) => (
-            <div key={index} className="flex items-center space-x-2">
+            <div key={index} className="flex items-center space-x-2 relative">
               <input
                 type="url"
                 value={url}
@@ -284,6 +343,57 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 placeholder="https://example.com"
               />
+              {/* Dropdown for saved links */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.preventDefault();
+                    // Toggle dropdown visibility by toggling a custom data attribute
+                    const btn = e.currentTarget as HTMLElement;
+                    const menu = btn.nextSibling as HTMLElement;
+                    if (menu) {
+                      menu.classList.toggle('hidden');
+                    }
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="저장된 링크 선택"
+                >
+                  <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center"></i>
+                </button>
+                <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 hidden max-h-40 overflow-y-auto">
+                  {(() => {
+                    let saved: { name: string; url: string }[] = [];
+                    if (typeof window !== 'undefined') {
+                      try {
+                        saved = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
+                      } catch {
+                        saved = [];
+                      }
+                    }
+                    if (saved.length === 0) {
+                      return (
+                        <div className="px-3 py-2 text-sm text-gray-500">저장된 링크가 없습니다</div>
+                      );
+                    }
+                    return saved.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={e => {
+                          e.preventDefault();
+                          handleUrlChange(index, item.url);
+                          // Hide menu
+                          const menu = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+                          menu.classList.add('hidden');
+                        }}
+                        className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                      >
+                        {item.name}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
               {formData.urls.length > 1 && (
                 <button
                   type="button"
@@ -305,45 +415,89 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           </button>
         </div>
       </div>
-       {/* Apps */}
+       {/* App files */}
        <div>
-         <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
-         <div className="space-y-2">
-           {formData.apps.map((app, index) => (
-             <div key={index} className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-               <input
-                 type="text"
-                 value={app.name}
-                 onChange={e => handleAppNameChange(index, e.target.value)}
-                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                 placeholder="앱 이름 (예: Notion)"
-               />
-               <input
-                 type="text"
-                 value={app.url || ''}
-                 onChange={e => handleAppUrlChange(index, e.target.value)}
-                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                 placeholder="앱 링크 (예: notion://)"
-               />
-               {formData.apps.length > 1 && (
-                 <button
-                   type="button"
-                   onClick={() => removeApp(index)}
-                   className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
-                 >
-                   <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
-                 </button>
-               )}
+         <label className="block text-sm font-medium text-gray-700 mb-2">앱 파일</label>
+         <div
+           className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+             appFiles.length > 0
+               ? 'border-green-400 bg-green-50'
+               : 'border-gray-300'
+           }`}
+           onDragOver={e => {
+             e.preventDefault();
+           }}
+           onDrop={async e => {
+             e.preventDefault();
+             const droppedFiles = e.dataTransfer.files;
+             if (droppedFiles.length > 0) {
+               const files = Array.from(droppedFiles);
+               let totalSize = appFiles.reduce((sum, att) => sum + (att.file?.size || 0), 0);
+               const newAtts: Attachment[] = [];
+               for (const file of files) {
+                 if (totalSize + file.size > MAX_TOTAL_ATTACHMENT_SIZE) {
+                   alert(`총 앱 파일 크기는 ${MAX_TOTAL_ATTACHMENT_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
+                   break;
+                 }
+                 const att = await readFile(file);
+                 newAtts.push(att);
+                 totalSize += file.size;
+               }
+               if (newAtts.length > 0) {
+                 setAppFiles(prev => [...prev, ...newAtts]);
+               }
+             }
+           }}
+         >
+           <input
+             type="file"
+             onChange={handleAppFileChange}
+             className="hidden"
+             multiple
+             ref={appFileInputRef}
+             // Accept any file type; actual restrictions can be enforced by the host OS
+           />
+           {appFiles.length > 0 ? (
+             <div className="space-y-2">
+               {appFiles.map((att, index) => (
+                 <div key={index} className="flex items-center justify-between bg-white rounded-md border p-2">
+                   <div className="flex items-center space-x-3">
+                     <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-lg">
+                       <i className="ri-rocket-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
+                     </div>
+                     <div>
+                       <p className="text-sm font-medium text-gray-900 break-all">{att.fileName}</p>
+                       <p className="text-xs text-gray-500">{att.file ? formatFileSize(att.file.size) : att.fileType}</p>
+                     </div>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => removeAppFile(index)}
+                     className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
+                   >
+                     <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
+                   </button>
+                 </div>
+               ))}
+               <button
+                 type="button"
+                 onClick={() => appFileInputRef.current?.click()}
+                 className="cursor-pointer flex items-center justify-center text-blue-600 hover:text-blue-700 mt-2"
+               >
+                 <i className="ri-add-line w-4 h-4 flex items-center justify-center mr-1"></i>
+                 <span className="text-sm">앱 파일 추가</span>
+               </button>
              </div>
-           ))}
-           <button
-             type="button"
-             onClick={addApp}
-             className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 cursor-pointer"
-           >
-             <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-             <span className="text-sm">앱 추가</span>
-           </button>
+           ) : (
+             <div
+               className="cursor-pointer flex flex-col items-center justify-center"
+               onClick={() => appFileInputRef.current?.click()}
+             >
+               <i className="ri-upload-cloud-line w-8 h-8 flex items-center justify-center mb-2 text-gray-400"></i>
+               <span className="text-sm text-gray-600">앱 파일을 선택하거나 드래그하세요</span>
+               <span className="text-xs text-gray-400 mt-1">여러 앱 파일을 첨부할 수 있습니다 (총 용량 20MB 이하)</span>
+             </div>
+           )}
          </div>
        </div>
       {/* File attachment */}

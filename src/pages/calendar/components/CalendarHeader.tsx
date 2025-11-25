@@ -192,7 +192,7 @@ export default function CalendarHeader({
       </div>
       {/* Calendar drop-down menu */}
       {isDropdownOpen && (
-        <div className="absolute mt-2 left-4 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
+        <div className="absolute mt-2 right-0 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
           <div className="max-h-60 overflow-y-auto">
             {calendars.map((cal, index) => (
               <div
@@ -247,17 +247,7 @@ export default function CalendarHeader({
               </div>
             ))}
           </div>
-          <div className="border-t border-gray-100">
-            <button
-              onClick={() => {
-                setDropdownOpen(false);
-                handleCreateCalendar();
-              }}
-              className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-gray-50"
-            >
-              + 새 시간표 만들기
-            </button>
-          </div>
+          {/* Note: removed new calendar creation from dropdown; use the separate button */}
         </div>
       )}
     </div>
