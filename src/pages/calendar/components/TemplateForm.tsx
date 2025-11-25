@@ -20,8 +20,12 @@ const DURATION_OPTIONS = [
   { label: '4시간', value: 240 }
 ];
 
-// Maximum total attachment size (20MB)
+// Maximum total attachment size (20MB) for general attachments.
 const MAX_TOTAL_ATTACHMENT_SIZE = 20 * 1024 * 1024;
+
+// Maximum total size for application attachments. Application executables tend
+// to be larger than documents or images, so the limit is set higher (200MB).
+const MAX_TOTAL_APP_SIZE = 200 * 1024 * 1024;
 
 interface Attachment {
   file?: File;
@@ -51,6 +55,13 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
   // Ref for the app file input. Using a separate ref avoids collisions
   // between attachment and app file inputs when triggering the file picker.
   const appFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // State for adding a saved URL template. When true, an inline form
+  // appears allowing the user to specify a name and a URL. Once saved,
+  // the pair is persisted to localStorage under the key 'calendar-saved-links'.
+  const [isAddLinkOpen, setAddLinkOpen] = useState(false);
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('https://');
 
   // Populate form when editing existing template
   useEffect(() => {
@@ -153,8 +164,8 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     const newAtts: Attachment[] = [];
     for (const file of files) {
       // Reuse the 20MB total limit for app files as well
-      if (totalSize + file.size > MAX_TOTAL_ATTACHMENT_SIZE) {
-        alert(`총 앱 파일 크기는 ${MAX_TOTAL_ATTACHMENT_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
+      if (totalSize + file.size > MAX_TOTAL_APP_SIZE) {
+        alert(`총 앱 파일 크기는 ${MAX_TOTAL_APP_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
         break;
       }
       const att = await readFile(file);
@@ -305,33 +316,76 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       </div>
       {/* URLs */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 relative">
           <label className="block text-sm font-medium text-gray-700">URL</label>
-          {/* Add new saved link button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window === 'undefined') return;
-              const name = window.prompt('저장할 링크의 이름을 입력하세요', '');
-              if (!name || name.trim() === '') return;
-              const url = window.prompt('저장할 링크의 URL을 입력하세요', 'https://');
-              if (!url || url.trim() === '') return;
-              try {
-                const current = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
-                current.push({ name: name.trim(), url: url.trim() });
-                localStorage.setItem('calendar-saved-links', JSON.stringify(current));
-                // Inform the user
-                alert('링크가 저장되었습니다.');
-              } catch {
-                // ignore
-              }
-            }}
-            className="flex items-center text-blue-600 hover:text-blue-700 text-sm"
-            title="URL 템플릿 저장"
-          >
-            <i className="ri-add-circle-line w-4 h-4 flex items-center justify-center mr-1"></i>
-            저장
-          </button>
+          {/* Saved link creation toggle */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAddLinkOpen(prev => !prev)}
+              className="flex items-center text-blue-600 hover:text-blue-700 text-sm"
+              title="URL 템플릿 저장"
+            >
+              <i className="ri-add-circle-line w-4 h-4 flex items-center justify-center mr-1"></i>
+              저장
+            </button>
+            {isAddLinkOpen && (
+              <div className="absolute right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3">
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={newLinkName}
+                    onChange={e => setNewLinkName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="링크 이름"
+                    autoFocus
+                  />
+                  <input
+                    type="url"
+                    value={newLinkUrl}
+                    onChange={e => setNewLinkUrl(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="https://example.com"
+                  />
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddLinkOpen(false);
+                        setNewLinkName('');
+                        setNewLinkUrl('https://');
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmedName = newLinkName.trim();
+                        const trimmedUrl = newLinkUrl.trim();
+                        if (trimmedName !== '' && trimmedUrl !== '') {
+                          try {
+                            const current = JSON.parse(localStorage.getItem('calendar-saved-links') || '[]');
+                            current.push({ name: trimmedName, url: trimmedUrl });
+                            localStorage.setItem('calendar-saved-links', JSON.stringify(current));
+                          } catch {
+                            // ignore errors
+                          }
+                        }
+                        setAddLinkOpen(false);
+                        setNewLinkName('');
+                        setNewLinkUrl('https://');
+                      }}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      저장
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           {formData.urls.map((url, index) => (
@@ -349,14 +403,13 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                   type="button"
                   onClick={e => {
                     e.preventDefault();
-                    // Toggle dropdown visibility by toggling a custom data attribute
                     const btn = e.currentTarget as HTMLElement;
                     const menu = btn.nextSibling as HTMLElement;
                     if (menu) {
                       menu.classList.toggle('hidden');
                     }
                   }}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 cursor-pointer"
                   title="저장된 링크 선택"
                 >
                   <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center"></i>
@@ -417,7 +470,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       </div>
        {/* App files */}
        <div>
-         <label className="block text-sm font-medium text-gray-700 mb-2">앱 파일</label>
+         <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
          <div
            className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
              appFiles.length > 0
@@ -435,8 +488,8 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
                let totalSize = appFiles.reduce((sum, att) => sum + (att.file?.size || 0), 0);
                const newAtts: Attachment[] = [];
                for (const file of files) {
-                 if (totalSize + file.size > MAX_TOTAL_ATTACHMENT_SIZE) {
-                   alert(`총 앱 파일 크기는 ${MAX_TOTAL_ATTACHMENT_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
+                 if (totalSize + file.size > MAX_TOTAL_APP_SIZE) {
+                   alert(`총 앱 파일 크기는 ${MAX_TOTAL_APP_SIZE / (1024 * 1024)}MB를 초과할 수 없습니다.`);
                    break;
                  }
                  const att = await readFile(file);

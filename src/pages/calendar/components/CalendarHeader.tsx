@@ -67,13 +67,19 @@ export default function CalendarHeader({
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // State to control creation of a new calendar via an inline form. When true,
+  // a small input panel will appear below the "새 시간표" button allowing the
+  // user to enter a name and confirm or cancel.
+  const [isCreateCalendarOpen, setCreateCalendarOpen] = useState(false);
+  const [newCalendarName, setNewCalendarName] = useState('');
+
   // Handlers
   const toggleDropdown = () => setDropdownOpen(prev => !prev);
   const handleCreateCalendar = () => {
-    const name = typeof window !== 'undefined' ? window.prompt('새 시간표 이름을 입력하세요', '') : null;
-    if (name && name.trim() !== '') {
-      onCreateCalendar(name.trim());
-    }
+    // Toggle the inline creation form. If already open, do nothing here; the
+    // form will handle confirmation. Reset the name when opening.
+    setCreateCalendarOpen(true);
+    setNewCalendarName('');
   };
   const handleRename = (id: string, currentName: string) => {
     const newName = typeof window !== 'undefined' ? window.prompt('새 이름을 입력하세요', currentName) : null;
@@ -94,6 +100,22 @@ export default function CalendarHeader({
     }
     setDraggingIndex(null);
     setDragOverIndex(null);
+  };
+
+  /** Confirm creation of a new calendar with the name entered by the user. */
+  const confirmCreateCalendar = () => {
+    const trimmed = newCalendarName.trim();
+    if (trimmed !== '') {
+      onCreateCalendar(trimmed);
+    }
+    setCreateCalendarOpen(false);
+    setNewCalendarName('');
+  };
+
+  /** Cancel creation of a new calendar and close the input panel. */
+  const cancelCreateCalendar = () => {
+    setCreateCalendarOpen(false);
+    setNewCalendarName('');
   };
 
   return (
@@ -121,23 +143,113 @@ export default function CalendarHeader({
               월간
             </button>
           </div>
-          {/* New schedule button */}
-          <button
-            onClick={handleCreateCalendar}
-            className="ml-2 px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
-          >
-            새 시간표
-          </button>
-          {/* Dropdown toggle */}
-          <button
-            onClick={toggleDropdown}
-            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-            title="시간표 선택"
-          >
-            <i className={`ri-arrow-down-s-line w-4 h-4 flex items-center justify-center transition-transform ${
-              isDropdownOpen ? 'rotate-180' : ''
-            }`}></i>
-          </button>
+          {/* New schedule button with inline creation form */}
+          <div className="relative ml-2">
+            <button
+              onClick={handleCreateCalendar}
+              className="px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
+            >
+              새 시간표
+            </button>
+            {isCreateCalendarOpen && (
+              <div className="absolute left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-40 p-3">
+                <input
+                  type="text"
+                  value={newCalendarName}
+                  onChange={e => setNewCalendarName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="새 시간표 이름"
+                  autoFocus
+                />
+                <div className="flex justify-end space-x-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={cancelCreateCalendar}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmCreateCalendar}
+                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    확인
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Dropdown toggle and menu wrapper */}
+          <div className="relative">
+            <button
+              onClick={toggleDropdown}
+              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="시간표 선택"
+            >
+              <i className={`ri-arrow-down-s-line w-4 h-4 flex items-center justify-center transition-transform ${
+                isDropdownOpen ? 'rotate-180' : ''
+              }`}></i>
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute left-0 mt-2 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
+                <div className="max-h-60 overflow-y-auto">
+                  {calendars.map((cal, index) => (
+                    <div
+                      key={cal.id}
+                      className={`flex items-center space-x-2 px-3 py-2 cursor-pointer ${
+                        selectedCalendarId === cal.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
+                      draggable
+                      onDragStart={() => setDraggingIndex(index)}
+                      onDragOver={e => {
+                        e.preventDefault();
+                        setDragOverIndex(index);
+                      }}
+                      onDrop={handleDrop}
+                    >
+                      {/* Drag handle */}
+                      <i className="ri-drag-move-line text-gray-400"></i>
+                      {/* Calendar name */}
+                      <span
+                        className={`flex-1 text-sm ${selectedCalendarId === cal.id ? 'font-semibold' : ''}`}
+                        onClick={() => {
+                          onSelectCalendar(cal.id);
+                          setDropdownOpen(false);
+                        }}
+                      >
+                        {cal.name}
+                      </span>
+                      {/* Rename */}
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleRename(cal.id, cal.name);
+                        }}
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600"
+                        title="이름 수정"
+                      >
+                        <i className="ri-edit-line w-3 h-3 flex items-center justify-center"></i>
+                      </button>
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDelete(cal.id, cal.name);
+                        }}
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600"
+                        title="삭제"
+                      >
+                        <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           {todayEvents.length > 0 && (
@@ -190,66 +302,6 @@ export default function CalendarHeader({
           </button>
         </div>
       </div>
-      {/* Calendar drop-down menu */}
-      {isDropdownOpen && (
-        <div className="absolute mt-2 right-0 bg-white shadow-lg border border-gray-200 rounded-lg z-30 w-64">
-          <div className="max-h-60 overflow-y-auto">
-            {calendars.map((cal, index) => (
-              <div
-                key={cal.id}
-                className={`flex items-center space-x-2 px-3 py-2 cursor-pointer ${
-                  selectedCalendarId === cal.id ? 'bg-blue-50' : 'hover:bg-gray-50'
-                }`}
-                draggable
-                onDragStart={() => setDraggingIndex(index)}
-                onDragOver={e => {
-                  e.preventDefault();
-                  setDragOverIndex(index);
-                }}
-                onDrop={handleDrop}
-              >
-                {/* Drag handle */}
-                <i className="ri-drag-move-line text-gray-400"></i>
-                {/* Calendar name */}
-                <span
-                  className={`flex-1 text-sm ${selectedCalendarId === cal.id ? 'font-semibold' : ''}`}
-                  onClick={() => {
-                    onSelectCalendar(cal.id);
-                    setDropdownOpen(false);
-                  }}
-                >
-                  {cal.name}
-                </span>
-                {/* Rename */}
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleRename(cal.id, cal.name);
-                  }}
-                  className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600"
-                  title="이름 수정"
-                >
-                  <i className="ri-edit-line w-3 h-3 flex items-center justify-center"></i>
-                </button>
-                {/* Delete */}
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleDelete(cal.id, cal.name);
-                  }}
-                  className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600"
-                  title="삭제"
-                >
-                  <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
-                </button>
-              </div>
-            ))}
-          </div>
-          {/* Note: removed new calendar creation from dropdown; use the separate button */}
-        </div>
-      )}
     </div>
   );
 }
