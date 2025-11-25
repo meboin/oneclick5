@@ -9,17 +9,19 @@ interface CalendarHeaderProps {
   events: CalendarEvent[];
   onToggleWidget: () => void;
   isWidgetOpen: boolean;
-  /**
-   * Number of pending alert notifications. When greater than zero, a red dot is
-   * displayed on the notifications icon.
-   */
+  /** Number of pending alert notifications. Displays a red dot when > 0. */
   alertCount?: number;
+  /** Callback for creating a new schedule (calendar). */
+  onCreateCalendar?: () => void;
+  /** Optional current calendar name to display. */
+  calendarName?: string;
 }
 
 /**
- * 캘린더 상단 헤더. 주간/월간 보기 전환과 새로운 템플릿 생성 버튼,
- * 알림/공유 버튼, 위젯 토글 버튼을 제공합니다. 오늘 일정 수를 표시합니다.
- * 알림 버튼 위에는 alertCount가 0보다 클 때 빨간 점이 표시됩니다.
+ * 캘린더 상단 헤더.
+ * 주간/월간 보기 전환, 새로운 템플릿 생성 버튼, 알림/공유 버튼,
+ * 위젯 토글 버튼을 제공합니다. 필요하다면 새로운 시간표 생성 버튼과
+ * 현재 시간표 이름을 표시할 수 있습니다.
  */
 export default function CalendarHeader({
   viewMode,
@@ -30,8 +32,11 @@ export default function CalendarHeader({
   events,
   onToggleWidget,
   isWidgetOpen,
-  alertCount = 0
+  alertCount = 0,
+  onCreateCalendar,
+  calendarName
 }: CalendarHeaderProps) {
+  // Filter today's events for display
   const todayEvents = events.filter(event => {
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -42,7 +47,8 @@ export default function CalendarHeader({
     <div className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <h1 className="text-xl font-bold text-gray-900">캘린더</h1>
+          {/* Display current calendar name if provided */}
+          <h1 className="text-xl font-bold text-gray-900">{calendarName ?? '캘린더'}</h1>
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => onViewModeChange('week')}
@@ -61,6 +67,15 @@ export default function CalendarHeader({
               월간
             </button>
           </div>
+          {/* New schedule button */}
+          {onCreateCalendar && (
+            <button
+              onClick={onCreateCalendar}
+              className="ml-2 px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
+            >
+              새 시간표
+            </button>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           {todayEvents.length > 0 && (
@@ -71,13 +86,14 @@ export default function CalendarHeader({
               </span>
             </div>
           )}
+          {/* Create template button */}
           <button
             onClick={onCreateTemplate}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs whitespace-nowrap cursor-pointer"
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs whitespace-nowrap"
           >
             새 템플릿
           </button>
-          {/* Notifications button with red dot */}
+          {/* Notifications button */}
           <div className="relative">
             <button
               onClick={onNotifications}
@@ -96,7 +112,7 @@ export default function CalendarHeader({
           >
             <i className="ri-share-line w-4 h-4 flex items-center justify-center"></i>
           </button>
-          {/* Widget toggle button */}
+          {/* Widget toggle */}
           <button
             onClick={onToggleWidget}
             className={`w-8 h-8 flex items-center justify-center rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -104,9 +120,11 @@ export default function CalendarHeader({
             }`}
             title={isWidgetOpen ? '위젯 닫기' : '위젯 열기'}
           >
-            <i className={`w-4 h-4 flex items-center justify-center group-hover:scale-110 transition-transform ${
-              isWidgetOpen ? 'ri-close-line' : 'ri-calendar-line'
-            }`}></i>
+            <i
+              className={`w-4 h-4 flex items-center justify-center group-hover:scale-110 transition-transform ${
+                isWidgetOpen ? 'ri-close-line' : 'ri-calendar-line'
+              }`}
+            ></i>
           </button>
         </div>
       </div>

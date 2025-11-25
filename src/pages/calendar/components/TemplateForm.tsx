@@ -301,13 +301,13 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         <div className="space-y-2">
           {formData.apps.map((app, index) => (
             <div key={index} className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={app}
-                onChange={e => handleAppChange(index, e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                placeholder="앱 이름을 입력하세요"
-              />
+               <input
+                 type="text"
+                 value={app}
+                 onChange={e => handleAppChange(index, e.target.value)}
+                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                 placeholder="앱 이름을 입력하세요 (예: Notion, VS Code, Discord)"
+               />
               {formData.apps.length > 1 && (
                 <button
                   type="button"

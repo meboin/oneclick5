@@ -17,18 +17,38 @@ const VIEW_MODE_KEY = 'calendar-view-mode';
  * their schedule.
  */
 export function useCalendar() {
-  // Load calendars from localStorage on initial render.
+  // Load calendars from localStorage on initial render. If none exist
+  // create a default calendar so that users always have one schedule to work with.
   const [calendars, setCalendars] = useState<CalendarData[]>(() => {
     if (typeof window === 'undefined') return [];
     const saved = localStorage.getItem(CALENDARS_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved) as CalendarData[];
+        const parsed = JSON.parse(saved) as CalendarData[];
+        // Return parsed calendars if any exist.
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       } catch {
-        return [];
+        // ignore parse errors and fall through to default
       }
     }
-    return [];
+    // When no calendars are saved, initialise with a default calendar.
+    const defaultId = Date.now().toString();
+    const defaultCalendar: CalendarData = {
+      id: defaultId,
+      name: '시간표1',
+      templates: [],
+      events: []
+    };
+    // Persist the default calendar immediately.
+    try {
+      localStorage.setItem(CALENDARS_KEY, JSON.stringify([defaultCalendar]));
+      localStorage.setItem(SELECTED_CALENDAR_KEY, defaultId);
+    } catch {
+      // ignore write errors
+    }
+    return [defaultCalendar];
   });
 
   // Load selected calendar ID from localStorage or default to first calendar.
