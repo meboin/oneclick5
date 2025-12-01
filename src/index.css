@@ -1,0 +1,71 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 풀스크린 시 비율 유지를 위한 스타일 */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 풀스크린 모드에서 컨테이너 비율 유지 */
+@media (min-width: 1024px) {
+  .main-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+}
+
+/* 풀스크린에서 중앙 정렬 및 비율 유지 */
+.fullscreen-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+/* 브라우저 풀스크린 API 지원 */
+:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+}
+
+:-moz-full-screen {
+  width: 100%;
+  height: 100%;
+}
+
+:-ms-fullscreen {
+  width: 100%;
+  height: 100%;
+}
+
+:fullscreen {
+  width: 100%;
+  height: 100%;
+}
+
+/* 풀스크린 시 스크롤바 숨김 */
+:fullscreen::-webkit-scrollbar {
+  display: none;
+}
+
+:fullscreen {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
