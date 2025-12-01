@@ -55,51 +55,7 @@ export default function WeekView({
    */
   const handleEventClick = async (event: CalendarEvent) => {
     const template = event.template;
-    // 1. 앱 파일이 있는 경우 우선적으로 실행합니다.
-    //    Windows 바로가기(.lnk) 파일을 포함한 앱 첨부는 실제 실행 파일의 경로를 포함하지 않기 때문에
-    //    브라우저에서 직접 실행할 수 없습니다. 대신 사용자의 컴퓨터에 다운로드하여
-    //    사용자가 직접 실행할 수 있도록 합니다. 각 첨부 파일에 대해 blob URL을 만들어
-    //    다운로드 링크를 트리거합니다. 기존에 남아 있는 File 객체가 있을 경우에도 동일하게 처리합니다.
-    if ((template as any).appFiles && (template as any).appFiles.length > 0) {
-      for (const att of (template as any).appFiles) {
-        try {
-          if (att.fileData) {
-            const response = await fetch(att.fileData);
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = objectUrl;
-            // use original filename if available, otherwise fallback to generic name
-            link.download = att.fileName || 'app-shortcut.lnk';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(objectUrl);
-          } else if ((att as any).file && (att as any).file instanceof File) {
-            const objectUrl = URL.createObjectURL((att as any).file);
-            const link = document.createElement('a');
-            link.href = objectUrl;
-            link.download = ((att as any).file as File).name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(objectUrl);
-          }
-        } catch {
-          // fallback: open the data URL directly. this may trigger a download.
-          const fallbackUrl = (att as any).fileData || '';
-          if (fallbackUrl) {
-            const a = document.createElement('a');
-            a.href = fallbackUrl;
-            a.download = att.fileName || 'app-shortcut.lnk';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          }
-        }
-      }
-      return;
-    }
+    // Removed appFiles handling. Events now only open attachments (files) and URLs on click.
     // 2. 첨부파일을 모두 연다
     if (template.attachments && template.attachments.length > 0) {
       for (const att of template.attachments) {

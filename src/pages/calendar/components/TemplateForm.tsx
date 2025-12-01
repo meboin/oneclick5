@@ -23,13 +23,7 @@ const DURATION_OPTIONS = [
 // Maximum total attachment size (20MB) for general attachments.
 const MAX_TOTAL_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
-// Maximum total size for application attachments. Previously a hard limit
-// was enforced to prevent large executables from overwhelming the browser.
-// However, the application attachments section now accepts only lightweight
-// shortcut files (.lnk) and does not enforce a strict size limit. Setting
-// this constant to Infinity effectively removes the cap while still
-// documenting its purpose.
-const MAX_TOTAL_APP_SIZE = Infinity;
+// Removed application attachment size constant since the app attachment feature has been removed.
 
 interface Attachment {
   file?: File;
@@ -45,20 +39,12 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     color: PRESET_COLORS[0],
     duration: 60,
     urls: [''],
-    // Note: application files are tracked separately in `appFiles` state.
+    // Note: no separate application file state because the feature has been removed.
   });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  // Separate state for application files. These files represent actual
-  // executables or packages that the user wishes to include with the
-  // template. They follow the same Attachment structure used for general
-  // attachments but are stored in a distinct list to differentiate UI
-  // sections.
-  const [appFiles, setAppFiles] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  // Ref for the app file input. Using a separate ref avoids collisions
-  // between attachment and app file inputs when triggering the file picker.
-  const appFileInputRef = useRef<HTMLInputElement | null>(null);
+  // Removed appFiles state and its associated ref since application attachments are no longer supported.
 
   // State for adding a saved URL template. When true, an inline form
   // appears allowing the user to specify a name and a URL. Once saved,
@@ -98,20 +84,6 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         );
       }
       setAttachments(existing);
-      // Load appFiles from editing template if present. The original template
-      // may include `appFiles` persisted from a previous session. Map these
-      // into the Attachment shape expected by the form state.
-      const existingApps: Attachment[] = [];
-      if ((editingTemplate as any).appFiles && (editingTemplate as any).appFiles.length > 0) {
-        existingApps.push(
-          ...((editingTemplate as any).appFiles as any[]).map((att: any) => ({
-            fileData: att.fileData,
-            fileName: att.fileName,
-            fileType: att.fileType
-          }))
-        );
-      }
-      setAppFiles(existingApps);
     } else {
       setFormData({
         name: '',
@@ -121,7 +93,6 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
         urls: ['']
       });
       setAttachments([]);
-      setAppFiles([]);
     }
   }, [editingTemplate]);
 
@@ -181,12 +152,6 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     e.preventDefault();
     if (!formData.name.trim()) return;
     const validUrls = formData.urls.filter(url => url.trim() !== '');
-    // Convert appFiles into serialisable attachments
-    const serializableAppFiles = appFiles.map(att => ({
-      fileData: att.fileData,
-      fileName: att.fileName,
-      fileType: att.fileType
-    }));
     const serializableAttachments = attachments.map(att => ({
       fileData: att.fileData,
       fileName: att.fileName,
@@ -197,8 +162,6 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
       urls: validUrls,
       // Remove deprecated `apps` by explicitly setting undefined
       apps: undefined,
-      // Save appFiles list on the template
-      appFiles: serializableAppFiles,
       attachments: serializableAttachments
     } as Omit<Template, 'id'>);
   };
@@ -219,27 +182,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
     }
   };
 
-  // App file handlers
-  // These functions manage the selection and removal of application files. Users
-  // can upload multiple executables; each is stored in the `appFiles` state.
-  const handleAppFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
-    if (!fileList) return;
-    const files = Array.from(fileList);
-    // Application files now accept .lnk shortcuts only and no size limit is enforced.
-    const newAtts: Attachment[] = [];
-    for (const file of files) {
-      const att = await readFile(file);
-      newAtts.push(att);
-    }
-    if (newAtts.length > 0) {
-      setAppFiles(prev => [...prev, ...newAtts]);
-    }
-    e.target.value = '';
-  };
-  const removeAppFile = (index: number) => {
-    setAppFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  // Removed application file handlers since application attachments are no longer supported.
 
   // File reading helper
   const readFile = (file: File): Promise<Attachment> => {
@@ -541,87 +484,7 @@ export default function TemplateForm({ onSubmit, onCancel, editingTemplate }: Te
           </button>
         </div>
       </div>
-       {/* App files */}
-       <div>
-         <label className="block text-sm font-medium text-gray-700 mb-2">앱</label>
-         <div
-           className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
-             appFiles.length > 0
-               ? 'border-green-400 bg-green-50'
-               : 'border-gray-300'
-           }`}
-           onDragOver={e => {
-             e.preventDefault();
-           }}
-           onDrop={async e => {
-             e.preventDefault();
-             const droppedFiles = e.dataTransfer.files;
-             if (droppedFiles.length > 0) {
-               const files = Array.from(droppedFiles);
-               const newAtts: Attachment[] = [];
-               for (const file of files) {
-                 const att = await readFile(file);
-                 newAtts.push(att);
-               }
-               if (newAtts.length > 0) {
-                 setAppFiles(prev => [...prev, ...newAtts]);
-               }
-             }
-           }}
-         >
-           <input
-             type="file"
-             onChange={handleAppFileChange}
-             className="hidden"
-             multiple
-             ref={appFileInputRef}
-             // Accept only Windows shortcut files (.lnk). Executable attachments
-             // are not allowed to avoid large file uploads and memory errors.
-             accept=".lnk"
-           />
-           {appFiles.length > 0 ? (
-             <div className="space-y-2">
-               {appFiles.map((att, index) => (
-                 <div key={index} className="flex items-center justify-between bg-white rounded-md border p-2">
-                   <div className="flex items-center space-x-3">
-                     <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-lg">
-                       <i className="ri-rocket-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
-                     </div>
-                     <div>
-                       <p className="text-sm font-medium text-gray-900 break-all">{att.fileName}</p>
-                       <p className="text-xs text-gray-500">{att.file ? formatFileSize(att.file.size) : att.fileType}</p>
-                     </div>
-                   </div>
-                   <button
-                     type="button"
-                     onClick={() => removeAppFile(index)}
-                     className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 cursor-pointer"
-                   >
-                     <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
-                   </button>
-                 </div>
-               ))}
-               <button
-                 type="button"
-                 onClick={() => appFileInputRef.current?.click()}
-                 className="cursor-pointer flex items-center justify-center text-blue-600 hover:text-blue-700 mt-2"
-               >
-                 <i className="ri-add-line w-4 h-4 flex items-center justify-center mr-1"></i>
-                 <span className="text-sm">앱 추가</span>
-               </button>
-             </div>
-           ) : (
-             <div
-               className="cursor-pointer flex flex-col items-center justify-center"
-               onClick={() => appFileInputRef.current?.click()}
-             >
-               <i className="ri-upload-cloud-line w-8 h-8 flex items-center justify-center mb-2 text-gray-400"></i>
-               <span className="text-sm text-gray-600">앱을 선택하거나 드래그하세요</span>
-               <span className="text-xs text-gray-400 mt-1">여러 앱을 첨부할 수 있습니다</span>
-             </div>
-           )}
-         </div>
-       </div>
+      {/* Removed app attachment section as requested */}
       {/* File attachment */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">파일 첨부</label>
