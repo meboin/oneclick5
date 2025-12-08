@@ -10,7 +10,6 @@ import CalendarWidget from './components/CalendarWidget';
 import Modal from '../../components/base/Modal';
 import { useUpcomingNotice } from '../../hooks/useUpcomingNotice';
 
-
 /**
  * 메인 캘린더 페이지입니다. 헤더, 주간/월간 뷰, 템플릿 보관함,
  * 템플릿 생성/수정 모달 및 캘린더 위젯을 포함합니다. 또한 일정
@@ -42,7 +41,7 @@ export default function CalendarPage() {
     clearSelection
   } = useCalendar();
 
-  // 1시간 이내로 다가온 일정 중 가장 빠른 일정 정보 (분 단위 남은 시간)
+  // 1시간 이내로 다가온 일정 정보 (이름 + 남은 분)
   const upcomingNotice = useUpcomingNotice(events);
 
   // Template modal state
@@ -82,11 +81,12 @@ export default function CalendarPage() {
     setEditingTemplate(null);
   };
 
-  // Notification state
+  // Notification state (기존 1시간 전 알림용)
   const [alerts, setAlerts] = useState<{ id: string; message: string }[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const alertedEventsRef = useRef<Set<string>>(new Set());
-  // Notification effect: check every minute for events an hour away
+
+  // 1시간 전에 딱 한 번 뜨는 알림 (기존 로직 유지)
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -94,7 +94,13 @@ export default function CalendarPage() {
       events.forEach(ev => {
         if (ev.day === nowDay) {
           const [startHour, startMinute] = ev.startTime.split(':').map(Number);
-          const eventStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMinute);
+          const eventStart = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            startHour,
+            startMinute
+          );
           const diffMinutes = (eventStart.getTime() - now.getTime()) / 60000;
           if (diffMinutes > 59 && diffMinutes <= 60) {
             const alertId = `${ev.id}-${eventStart.toISOString()}`;
@@ -113,6 +119,7 @@ export default function CalendarPage() {
   const handleNotifications = () => {
     setIsAlertsOpen(prev => !prev);
   };
+
   const handleShare = async () => {
     const today = new Date();
     const day = (today.getDay() + 6) % 7;
@@ -139,6 +146,7 @@ export default function CalendarPage() {
       alert('공유 기능을 지원하지 않는 브라우저입니다.');
     }
   };
+
   const handleToggleWidget = () => {
     setIsWidgetOpen(prev => !prev);
   };
@@ -234,25 +242,13 @@ export default function CalendarPage() {
         onCreateTemplate={handleCreateTemplate}
       />
 
-      {/* 1시간 이내로 다가온 일정 분단위 알림 */}
-      {upcomingNotice && (
-        <div className="fixed top-16 right-4 bg-white border border-blue-200 shadow-lg rounded-lg px-4 py-3 text-sm z-40">
-          <div className="text-xs font-semibold text-blue-600 mb-1">
-            곧 시작할 일정
-          </div>
-          <div className="font-medium text-gray-900 truncate">
-            {upcomingNotice.title}
-          </div>
-          <div className="text-xs text-gray-600 mt-1">
-            {upcomingNotice.minutesLeft}분 남았습니다
-          </div>
-        </div>
-      )}
-
       {selectedTemplate && (
         <div className="fixed bottom-3 right-3 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedTemplate.color }}></div>
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: selectedTemplate.color }}
+            ></div>
             <span className="text-xs font-medium">{selectedTemplate.name} 선택됨</span>
             <button
               onClick={clearSelection}
@@ -263,6 +259,7 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
       {isAlertsOpen && (
         <div className="fixed top-16 right-4 w-80 bg-white shadow-lg rounded-lg border border-gray-200 max-h-80 overflow-y-auto z-50">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -279,7 +276,20 @@ export default function CalendarPage() {
             </button>
           </div>
           <div className="p-4 space-y-2">
-            {alerts.length === 0 ? (
+            {/* 1시간 이내 일정이 있으면 맨 위에 표시 */}
+            {upcomingNotice && (
+              <div className="text-sm text-gray-800">
+                <div className="font-medium">
+                  {upcomingNotice.title}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {upcomingNotice.minutesLeft}분 남았습니다.
+                </div>
+              </div>
+            )}
+
+            {/* 기존 1시간 전에 딱 한 번 뜨는 알림들 */}
+            {!upcomingNotice && alerts.length === 0 ? (
               <p className="text-sm text-gray-500">알림이 없습니다.</p>
             ) : (
               alerts.map(alert => (

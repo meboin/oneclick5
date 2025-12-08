@@ -1,24 +1,19 @@
 // src/hooks/useUpcomingNotice.ts
-import { useEffect, useState } from "react";
-import type { CalendarEvent } from "../types/calendar";
+import { useEffect, useState } from 'react';
+import type { CalendarEvent } from '../types/calendar';
 
 export interface UpcomingNotice {
   eventId: string;
   title: string;
   minutesLeft: number;
-  start: Date;
-}
-
-function toDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
 }
 
 /**
- * events 배열에서
- * - 지금보다 이후이고
- * - 앞으로 1시간 이내에 시작하는 일정들 중
- *   가장 빨리 시작하는 일정 1개를 골라
- *   "몇 분 남았는지" 정보까지 함께 반환.
+ * 오늘 요일의 일정들 중
+ *  - 지금 이후이고
+ *  - 60분 이내에 시작하는 일정들 중
+ * 가장 빨리 시작하는 1개를 골라서
+ * 제목 + 남은 분 수를 돌려준다.
  */
 export function useUpcomingNotice(
   events: CalendarEvent[] | undefined | null
@@ -31,30 +26,42 @@ export function useUpcomingNotice(
       return;
     }
 
-    const updateNotice = () => {
+    const update = () => {
       const now = new Date();
-      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+      // 기존 코드에서 쓰던 요일 계산 로직 그대로 사용
+      const nowDay = (now.getDay() + 6) % 7;
 
       let best: UpcomingNotice | null = null;
 
       for (const ev of events) {
-        if (!ev.start) continue;
-        const start = toDate(ev.start as any);
+        if (ev.day !== nowDay) continue;
+        if (!ev.startTime) continue;
 
-        // 이미 시작한 일정은 제외
-        if (start <= now) continue;
-        // 1시간 이후 일정은 제외
-        if (start > oneHourLater) continue;
+        const [h, m] = ev.startTime.split(':').map(Number);
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          h || 0,
+          m || 0
+        );
 
-        const diffMs = start.getTime() - now.getTime();
-        const minutesLeft = Math.ceil(diffMs / 60000); // 분 단위 반올림
+        const diffMin = (start.getTime() - now.getTime()) / 60000;
+
+        // 0 < diff ≤ 60분만 대상
+        if (diffMin <= 0 || diffMin > 60) continue;
+
+        const minutesLeft = Math.ceil(diffMin);
+        const title =
+          (ev as any).template?.name ??
+          (ev as any).title ??
+          '이름 없는 일정';
 
         if (!best || minutesLeft < best.minutesLeft) {
           best = {
             eventId: ev.id,
-            title: ev.title,
+            title,
             minutesLeft,
-            start,
           };
         }
       }
@@ -62,11 +69,8 @@ export function useUpcomingNotice(
       setNotice(best);
     };
 
-    // 바로 한 번 계산
-    updateNotice();
-
-    // 30초마다 갱신
-    const id = window.setInterval(updateNotice, 30_000);
+    update();
+    const id = window.setInterval(update, 30_000); // 30초마다 갱신
     return () => window.clearInterval(id);
   }, [events]);
 
