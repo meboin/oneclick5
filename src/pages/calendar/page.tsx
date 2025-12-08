@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useCalendar } from '../../hooks/useCalendar';
 import { Template } from '../../types/calendar';
 import CalendarHeader from './components/CalendarHeader';
@@ -80,28 +80,36 @@ export default function CalendarPage() {
   // Notification state
   const [alerts, setAlerts] = useState<{ id: string; message: string }[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
-  const alertedEventsRef = useRef<Set<string>>(new Set());
-  // Notification effect: check every minute for events an hour away
+  // Notification effect: check every minute for events within the next hour
   useEffect(() => {
-    const interval = setInterval(() => {
+    const updateAlerts = () => {
       const now = new Date();
       const nowDay = (now.getDay() + 6) % 7;
-      events.forEach(ev => {
-        if (ev.day === nowDay) {
+
+      const upcomingAlerts = events
+        .filter(ev => ev.day === nowDay)
+        .map(ev => {
           const [startHour, startMinute] = ev.startTime.split(':').map(Number);
           const eventStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMinute);
           const diffMinutes = (eventStart.getTime() - now.getTime()) / 60000;
-          if (diffMinutes > 59 && diffMinutes <= 60) {
-            const alertId = `${ev.id}-${eventStart.toISOString()}`;
-            if (!alertedEventsRef.current.has(alertId)) {
-              alertedEventsRef.current.add(alertId);
-              const msg = `${ev.template.name} 수업 1시간 전`;
-              setAlerts(prev => [...prev, { id: alertId, message: msg }]);
-            }
+
+          if (diffMinutes > 0 && diffMinutes <= 60) {
+            const remainingMinutes = Math.ceil(diffMinutes);
+            return {
+              id: `${ev.id}-${eventStart.toISOString()}`,
+              message: `${ev.template.name} 수업 시작까지 ${remainingMinutes}분 남았어요.`,
+            };
           }
-        }
-      });
-    }, 60000);
+
+          return null;
+        })
+        .filter((alert): alert is { id: string; message: string } => alert !== null);
+
+      setAlerts(upcomingAlerts);
+    };
+
+    updateAlerts();
+    const interval = setInterval(updateAlerts, 60000);
     return () => clearInterval(interval);
   }, [events]);
 
@@ -250,7 +258,6 @@ export default function CalendarPage() {
               onClick={() => {
                 setAlerts([]);
                 setIsAlertsOpen(false);
-                alertedEventsRef.current.clear();
               }}
               className="text-gray-500 hover:text-gray-700"
             >
