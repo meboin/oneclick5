@@ -13,10 +13,6 @@ interface WeekViewProps {
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7시부터 18시까지
 
-/**
- * 주간 보기 컴포넌트. 시간과 요일 그리드에 이벤트를 렌더링하며 템플릿을 드래그하여
- * 새 일정을 만들 수 있습니다. 이벤트를 클릭하면 템플릿의 URL과 첨부파일을 열어줍니다.
- */
 export default function WeekView({
   events,
   selectedTemplate,
@@ -31,15 +27,12 @@ export default function WeekView({
     event: CalendarEvent;
   } | null>(null);
 
-  // 셀을 클릭하여 새 이벤트 생성
   const handleCellClick = (day: number, hour: number) => {
     if (!selectedTemplate) return;
     const startTime = `${hour.toString().padStart(2, '0')}:00`;
     const endHour = hour + Math.floor(selectedTemplate.duration / 60);
     const endMinute = selectedTemplate.duration % 60;
-    const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute
-      .toString()
-      .padStart(2, '0')}`;
+    const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
     onAddEvent({
       templateId: selectedTemplate.id,
       template: selectedTemplate,
@@ -49,14 +42,10 @@ export default function WeekView({
     });
   };
 
-  /**
-   * 이벤트 클릭 핸들러: 템플릿에 연결된 URL, 앱 파일, 첨부 파일을 열어줍니다.
-   * 우선 순위는 앱 파일(appFiles) → 첨부파일(attachments) → 단일 fileData/file → URL 목록 입니다.
-   */
   const handleEventClick = async (event: CalendarEvent) => {
     const template = event.template;
-    // Removed appFiles handling. Events now only open attachments (files) and URLs on click.
-    // 2. 첨부파일을 모두 연다
+
+    // 1. 첨부파일 열기
     if (template.attachments && template.attachments.length > 0) {
       for (const att of template.attachments) {
         if (att.fileData) {
@@ -69,14 +58,11 @@ export default function WeekView({
             window.open(att.fileData, '_blank');
           }
         } else if ((att as any).file && (att as any).file instanceof File) {
-          // Fallback for attachment still containing a File object (should not be persisted)
           const objectUrl = URL.createObjectURL((att as any).file);
           window.open(objectUrl, '_blank');
         }
       }
-      return;
     } else if ((template as any).fileData) {
-      // backwards compatibility: single fileData
       try {
         const response = await fetch((template as any).fileData);
         const blob = await response.blob();
@@ -85,27 +71,20 @@ export default function WeekView({
       } catch {
         window.open((template as any).fileData, '_blank');
       }
-      return;
     } else if ((template as any).file && (template as any).file instanceof File) {
-      // backwards compatibility: single File object
       const objectUrl = URL.createObjectURL((template as any).file);
       window.open(objectUrl, '_blank');
-      return;
     }
-    // 3. 마지막으로 모든 URL을 열기
+
+    // 2. URL도 열기
     if (template.urls && template.urls.length > 0) {
       const validUrls = template.urls.filter(url => url.trim());
-      if (validUrls.length > 0) {
-        validUrls.forEach(url => {
-          window.open(url, '_blank');
-        });
-        return;
-      }
+      validUrls.forEach(url => {
+        window.open(url, '_blank');
+      });
     }
-    // 아무 동작 없음
   };
 
-  // 우클릭 컨텍스트 메뉴 표시
   const handleEventContextMenu = (e: React.MouseEvent, event: CalendarEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -130,19 +109,15 @@ export default function WeekView({
     setContextMenu(null);
   };
 
-  // 드래그 앤 드롭: 셀에 템플릿을 드롭하여 일정 생성 또는 이벤트 이동
   const handleDrop = (e: React.DragEvent, day: number, hour: number) => {
     e.preventDefault();
-    // 템플릿 드래그 처리
     const templateData = e.dataTransfer.getData('template');
     if (templateData) {
       const template: Template = JSON.parse(templateData);
       const startTime = `${hour.toString().padStart(2, '0')}:00`;
       const endHour = hour + Math.floor(template.duration / 60);
       const endMinute = template.duration % 60;
-      const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute
-        .toString()
-        .padStart(2, '0')}`;
+      const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
       onAddEvent({
         templateId: template.id,
         template,
@@ -152,7 +127,7 @@ export default function WeekView({
       });
       return;
     }
-    // 이벤트 드래그 처리
+
     const eventData = e.dataTransfer.getData('event');
     if (eventData) {
       const eventId = JSON.parse(eventData);
@@ -161,15 +136,12 @@ export default function WeekView({
         const startTime = `${hour.toString().padStart(2, '0')}:00`;
         const endHour = hour + Math.floor(event.template.duration / 60);
         const endMinute = event.template.duration % 60;
-        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute
-          .toString()
-          .padStart(2, '0')}`;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
         onUpdateEvent(eventId, { day, startTime, endTime });
       }
     }
   };
 
-  // 특정 셀에 해당하는 이벤트를 찾음
   const getEventForCell = (day: number, hour: number) => {
     return events.find(event => {
       const eventStartHour = parseInt(event.startTime.split(':')[0]);
@@ -180,13 +152,11 @@ export default function WeekView({
     });
   };
 
-  // 이벤트 시작 여부 확인
   const isEventStart = (event: CalendarEvent, hour: number) => {
     const eventStartHour = parseInt(event.startTime.split(':')[0]);
     return hour === eventStartHour;
   };
 
-  // 이벤트가 차지하는 셀 높이 계산 (시간 수)
   const getEventHeight = (event: CalendarEvent) => {
     const startHour = parseInt(event.startTime.split(':')[0]);
     const endHour = parseInt(event.endTime.split(':')[0]);
@@ -199,24 +169,15 @@ export default function WeekView({
 
   return (
     <div className="flex-1 bg-white h-full overflow-hidden" onClick={handleClickOutside}>
-      {/* 스크롤 가능한 래퍼: 헤더와 그리드를 함께 감싸 스크롤바로 인한 요일/시간 정렬 문제를 해결합니다 */}
-      <div
-        className="overflow-y-auto h-full"
-        style={{ maxHeight: 'calc(((100vh - 120px) / 12) * 8)' }}
-      >
-        {/* 요일 헤더 */}
+      <div className="overflow-y-auto h-full" style={{ maxHeight: 'calc(((100vh - 120px) / 12) * 8)' }}>
         <div className="grid grid-cols-8 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="p-2 border-r border-gray-200"></div>
           {DAYS.map(day => (
-            <div
-              key={day}
-              className="p-2 text-center font-medium text-gray-900 border-r border-gray-200 text-sm"
-            >
+            <div key={day} className="p-2 text-center font-medium text-gray-900 border-r border-gray-200 text-sm">
               {day}
             </div>
           ))}
         </div>
-        {/* 시간/요일 그리드 */}
         <div className="grid grid-cols-8">
           {HOURS.map(hour => (
             <div key={hour} className="contents">
@@ -282,7 +243,7 @@ export default function WeekView({
           ))}
         </div>
       </div>
-      {/* 컨텍스트 메뉴 */}
+
       {contextMenu && (
         <div
           className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
