@@ -8,6 +8,8 @@ import MonthView from './components/MonthView';
 import TemplateForm from './components/TemplateForm';
 import CalendarWidget from './components/CalendarWidget';
 import Modal from '../../components/base/Modal';
+import { useUpcomingNotice } from '../../hooks/useUpcomingNotice';
+
 
 /**
  * 메인 캘린더 페이지입니다. 헤더, 주간/월간 뷰, 템플릿 보관함,
@@ -39,6 +41,9 @@ export default function CalendarPage() {
     selectTemplate,
     clearSelection
   } = useCalendar();
+
+  // 1시간 이내로 다가온 일정 중 가장 빠른 일정 정보 (분 단위 남은 시간)
+  const upcomingNotice = useUpcomingNotice(events);
 
   // Template modal state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -228,6 +233,22 @@ export default function CalendarPage() {
         events={events}
         onCreateTemplate={handleCreateTemplate}
       />
+
+      {/* 1시간 이내로 다가온 일정 분단위 알림 */}
+      {upcomingNotice && (
+        <div className="fixed top-16 right-4 bg-white border border-blue-200 shadow-lg rounded-lg px-4 py-3 text-sm z-40">
+          <div className="text-xs font-semibold text-blue-600 mb-1">
+            곧 시작할 일정
+          </div>
+          <div className="font-medium text-gray-900 truncate">
+            {upcomingNotice.title}
+          </div>
+          <div className="text-xs text-gray-600 mt-1">
+            {upcomingNotice.minutesLeft}분 남았습니다
+          </div>
+        </div>
+      )}
+
       {selectedTemplate && (
         <div className="fixed bottom-3 right-3 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg">
           <div className="flex items-center space-x-2">
